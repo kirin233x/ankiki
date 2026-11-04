@@ -1,0 +1,369 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { api, CardDetail, SearchResult } from "../api";
+import { useApp } from "../App";
+import CardFrame from "../components/CardFrame";
+import NoteEditor from "../components/NoteEditor";
+import { Confirm, useToast } from "../components/ui";
+import { renderSide } from "../render";
+import { formatDateTime, formatDays, formatDue, RATING_COLOR, RATING_LABEL, STATE_COLOR, STATE_LABEL } from "../utils";
+
+const PAGE = 50;
+
+const STATES = [
+  { key: "", label: "全部" },
+  { key: "due", label: "今日到期", color: "var(--accent)" },
+  { key: "new", label: "新卡", color: "var(--new)" },
+  { key: "learning", label: "学习中", color: "var(--learn)" },
+  { key: "review", label: "复习中", color: "var(--review)" },
+  { key: "suspended", label: "已暂停", color: "var(--faint)" },
+];
+
+const COLUMNS: { key: string; label: string; sort?: string; optional?: boolean }[] = [
+  { key: "front", label: "单词", sort: "sort" },
+  { key: "back", label: "释义" },
+  { key: "deck", label: "词书", optional: true },
+  { key: "state", label: "状态" },
+  { key: "due", label: "到期", sort: "due" },
+  { key: "interval", label: "间隔", sort: "interval", optional: true },
+  { key: "difficulty", label: "难度", sort: "difficulty", optional: true },
+  { key: "reps", label: "复习", sort: "reps", optional: true },
+  { key: "lapses", label: "遗忘", sort: "lapses", optional: true },
+];
+
+export default function Browse({ initialDeck }: { initialDeck: number | null }) {
+  const app = useApp();
+  const toast = useToast();
+  const [deckId, setDeckId] = useState<number | null>(initialDeck);
+  const [text, setText] = useState("");
+  const [query, setQuery] = useState("");
+  const [state, setState] = useState("");
+  const [sort, setSort] = useState("created");
+  const [desc, setDesc] = useState(false);
+  const [page, setPage] = useState(0);
+  const [data, setData] = useState<SearchResult>({ total: 0, rows: [] });
+  const [selected, setSelected] = useState<number | null>(null);
+  const [detail, setDetail] = useState<CardDetail | null>(null);
+  const [side, setSide] = useState<"q" | "a">("q");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // 输入防抖
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setQuery(text);
+      setPage(0);
+    }, 250);
+    return () => clearTimeout(t);
+  }, [text]);
+
+  const load = useCallback(async () => {
+    try {
+      setData(
+        await api.searchCards({ deckId, text: query, state, sort, desc, offset: page * PAGE, limit: PAGE }),
+      );
+    } catch (e) {
+      toast(String(e), true);
+    }
+  }, [deckId, query, state, sort, desc, page, toast]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const loadDetail = useCallback(async (id: number) => {
+    try {
+      setDetail(await api.cardDetail(id));
+    } catch {
+      setDetail(null);
+      setSelected(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selected != null) loadDetail(selected);
+    else setDetail(null);
+    setSide("q");
+  }, [selected, loadDetail]);
+
+  const refreshAll = async () => {
+    await load();
+    if (selected != null) await loadDetail(selected);
+    app.refreshDecks();
+  };
+
+  const rendered = useMemo(() => (detail ? renderSide(detail.view, side) : null), [detail, side]);
+  const pages = Math.max(1, Math.ceil(data.total / PAGE));
+
+  const toggleSort = (key?: string) => {
+    if (!key) return;
+    if (sort === key) setDesc(!desc);
+    else {
+      setSort(key);
+      setDesc(false);
+    }
+    setPage(0);
+  };
+
+  return (
+    <div className={`browse ${detail ? "has-drawer" : ""}`}>
+      <div className="browse-main">
+        <div className="page-header" style={{ margin: "8px 0 18px" }}>
+          <div>
+            <h1 className="page-title">单词本</h1>
+            <div className="page-subtitle">共 {data.total} 张卡片</div>
+          </div>
+        </div>
+        <div className="toolbar">
+          <div className="search-box">
+            <Search size={16} />
+            <input
+              className="input"
+              placeholder="搜索单词、释义或标签…"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+            />
+          </div>
+          <select
+            className="select"
+            value={deckId ?? ""}
+            onChange={(e) => {
+              setDeckId(e.target.value ? Number(e.target.value) : null);
+              setPage(0);
+            }}
+          >
+            <option value="">全部词书</option>
+            {app.decks.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="chips">
+          {STATES.map((s) => (
+            <button
+              key={s.key}
+              className={`chip ${state === s.key ? "on" : ""}`}
+              onClick={() => {
+                setState(s.key);
+                setPage(0);
+              }}
+            >
+              {s.color && <i style={{ background: s.color }} />}
+              {s.label}
+            </button>
+          ))}
+        </div>
+        <div className="table-wrap">
+          <table className="cards">
+            <thead>
+              <tr>
+                {COLUMNS.map((c) => (
+                  <th
+                    key={c.key}
+                    className={`c-${c.key} ${c.optional ? "col-optional" : ""}`}
+                    onClick={() => toggleSort(c.sort)}
+                    style={{ cursor: c.sort ? "pointer" : "default" }}
+                  >
+                    {c.label}
+                    {c.sort && sort === c.sort && <span className="sort-ind">{desc ? "▼" : "▲"}</span>}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.rows.map((r) => (
+                <tr
+                  key={r.cardId}
+                  className={selected === r.cardId ? "selected" : ""}
+                  onClick={() => setSelected(r.cardId === selected ? null : r.cardId)}
+                  style={{ opacity: r.suspended ? 0.5 : 1 }}
+                >
+                  <td className="front" title={r.front}>
+                    {r.front || "（空）"}
+                  </td>
+                  <td className="back" title={r.back}>
+                    {r.back}
+                  </td>
+                  <td className="num col-optional" style={{ maxWidth: 140 }} title={r.deckName}>
+                    {r.deckName}
+                  </td>
+                  <td>
+                    <span className="state-dot" style={{ color: r.suspended ? "var(--faint)" : STATE_COLOR[r.state] }}>
+                      <i style={{ background: "currentColor" }} />
+                      {r.suspended ? "已暂停" : STATE_LABEL[r.state]}
+                    </span>
+                  </td>
+                  <td className="num">{formatDue(r.due, r.state)}</td>
+                  <td className="num col-optional">{r.state === 0 ? "—" : formatDays(r.interval)}</td>
+                  <td className="num col-optional">
+                    {r.difficulty > 0 ? <DifficultyBar value={r.difficulty} /> : "—"}
+                  </td>
+                  <td className="num col-optional">{r.reps}</td>
+                  <td className="num col-optional">{r.lapses}</td>
+                </tr>
+              ))}
+              {data.rows.length === 0 && (
+                <tr>
+                  <td colSpan={COLUMNS.length} style={{ textAlign: "center", padding: 60, color: "var(--muted)" }}>
+                    没有找到符合条件的卡片
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div className="pager">
+          <span>
+            第 {page + 1} / {pages} 页
+          </span>
+          <div className="pager-btns">
+            <button className="btn" disabled={page === 0} onClick={() => setPage(page - 1)}>
+              <ChevronLeft size={16} />
+            </button>
+            <button className="btn" disabled={page + 1 >= pages} onClick={() => setPage(page + 1)}>
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {detail && rendered && (
+        <aside className="drawer">
+          <div className="drawer-head">
+            <h3>{detail.row.front}</h3>
+            <div className="segmented">
+              <button className={side === "q" ? "on" : ""} onClick={() => setSide("q")}>
+                正面
+              </button>
+              <button className={side === "a" ? "on" : ""} onClick={() => setSide("a")}>
+                背面
+              </button>
+            </div>
+            <button className="icon-btn" onClick={() => setSelected(null)}>
+              <X size={18} />
+            </button>
+          </div>
+          <div className="drawer-body">
+            <div className="preview-box">
+              <CardFrame
+                html={rendered.html}
+                css={detail.view.notetype.css}
+                mediaDir={detail.view.notetype.mediaDir}
+                ord={detail.view.ord}
+                dark={app.dark}
+                styleMode={app.settings.cardStyle}
+                compact
+              />
+            </div>
+            <div className="info-grid">
+              <Info label="状态" value={detail.row.suspended ? "已暂停" : STATE_LABEL[detail.row.state]} />
+              <Info label="下次复习" value={formatDue(detail.row.due, detail.row.state)} />
+              <Info label="当前间隔" value={detail.row.state === 0 ? "—" : formatDays(detail.row.interval)} />
+              <Info
+                label="当前记忆率"
+                value={detail.retrievability != null ? `${Math.round(detail.retrievability * 100)}%` : "—"}
+              />
+              <Info label="稳定性" value={detail.row.stability > 0 ? formatDays(Math.round(detail.row.stability)) : "—"} />
+              <Info label="难度" value={detail.row.difficulty > 0 ? `${detail.row.difficulty.toFixed(1)} / 10` : "—"} />
+              <Info label="复习次数" value={String(detail.row.reps)} />
+              <Info label="遗忘次数" value={String(detail.row.lapses)} />
+            </div>
+
+            <div className="drawer-section">编辑内容</div>
+            <NoteEditor card={detail.view} onSaved={refreshAll} />
+
+            {detail.history.length > 0 && (
+              <>
+                <div className="drawer-section">复习记录</div>
+                <div className="history">
+                  {detail.history.map((h, i) => (
+                    <div className="history-row" key={i}>
+                      <span className="r" style={{ color: RATING_COLOR[h.rating] }}>
+                        {RATING_LABEL[h.rating]}
+                      </span>
+                      <span className="t">{formatDateTime(h.ts)}</span>
+                      <span style={{ color: "var(--muted)" }}>
+                        {h.interval > 0 ? formatDays(h.interval) : `${Math.max(1, Math.round(-h.interval / 60))}分钟`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+            <div style={{ fontSize: 11.5, color: "var(--faint)", marginTop: 16 }}>
+              添加于 {formatDateTime(detail.createdAt * 1000)} · 笔记类型「{detail.view.notetype.name}」
+            </div>
+          </div>
+          <div className="drawer-actions">
+            <button
+              className="btn"
+              onClick={async () => {
+                await api.setSuspended([detail.row.cardId], !detail.row.suspended);
+                toast(detail.row.suspended ? "已恢复" : "已暂停");
+                refreshAll();
+              }}
+            >
+              {detail.row.suspended ? <Play size={15} /> : <Pause size={15} />}
+              {detail.row.suspended ? "恢复" : "暂停"}
+            </button>
+            <button
+              className="btn"
+              disabled={detail.row.state === 0}
+              onClick={async () => {
+                await api.forgetCards([detail.row.cardId]);
+                toast("已重置为新卡");
+                refreshAll();
+              }}
+            >
+              <RotateCcw size={15} />
+              重置进度
+            </button>
+            <button className="btn btn-danger" style={{ marginLeft: "auto" }} onClick={() => setConfirmDelete(true)}>
+              <Trash2 size={15} />
+              删除
+            </button>
+          </div>
+        </aside>
+      )}
+
+      {confirmDelete && detail && (
+        <Confirm
+          title="删除这个单词？"
+          danger
+          confirmText="删除"
+          message={`「${detail.row.front}」及其所有卡片和复习记录将被永久删除。`}
+          onClose={() => setConfirmDelete(false)}
+          onConfirm={async () => {
+            await api.deleteNotes([detail.row.noteId]);
+            setSelected(null);
+            toast("已删除");
+            refreshAll();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="info-item">
+      <span>{label}</span>
+      <b>{value}</b>
+    </div>
+  );
+}
+
+function DifficultyBar({ value }: { value: number }) {
+  const pct = ((value - 1) / 9) * 100;
+  const color = value < 4 ? "var(--good)" : value < 7 ? "var(--hard)" : "var(--again)";
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+      <span style={{ width: 40, height: 5, borderRadius: 3, background: "var(--panel-3)", overflow: "hidden" }}>
+        <span style={{ display: "block", width: `${pct}%`, height: "100%", background: color }} />
+      </span>
+      {value.toFixed(1)}
+    </span>
+  );
+}

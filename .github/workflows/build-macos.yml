@@ -1,0 +1,45 @@
+name: 打包 macOS 应用
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: 安装前端依赖
+        run: npm ci
+
+      - name: 运行核心测试
+        working-directory: src-tauri
+        run: cargo test -p ankiki-core
+
+      - name: 打包（Universal：同时支持 Apple 芯片与 Intel）
+        run: npm run tauri build -- --target universal-apple-darwin
+
+      - name: 上传安装包
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ankiki-macOS
+          path: |
+            src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          if-no-files-found: error

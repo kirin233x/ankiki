@@ -1,0 +1,219 @@
+use ankiki_core::importer::ImportOptions;
+use ankiki_core::models::*;
+use ankiki_core::Collection;
+use std::path::PathBuf;
+use std::sync::Mutex;
+use tauri::{AppHandle, Emitter, Manager, State};
+
+struct AppState(Mutex<Collection>);
+
+type CmdResult<T> = Result<T, String>;
+
+fn err(e: anyhow::Error) -> String {
+    format!("{e}")
+}
+
+macro_rules! with_col {
+    ($state:expr, $col:ident => $body:expr) => {{
+        let mut guard = $state.0.lock().map_err(|_| "数据库被占用，请重试".to_string())?;
+        #[allow(unused_mut)]
+        let mut $col = &mut *guard;
+        $body.map_err(err)
+    }};
+}
+
+// ------------------------------------------------------------------ 设置
+
+#[tauri::command]
+fn get_settings(state: State<AppState>) -> CmdResult<Settings> {
+    with_col!(state, col => Ok::<_, anyhow::Error>(col.settings().clone()))
+}
+
+#[tauri::command]
+fn save_settings(state: State<AppState>, settings: Settings) -> CmdResult<()> {
+    with_col!(state, col => col.save_settings(settings))
+}
+
+// ------------------------------------------------------------------ 词书
+
+#[tauri::command]
+fn list_decks(state: State<AppState>) -> CmdResult<Vec<DeckInfo>> {
+    with_col!(state, col => col.list_decks())
+}
+
+#[tauri::command]
+fn create_deck(state: State<AppState>, name: String) -> CmdResult<i64> {
+    with_col!(state, col => col.create_deck(&name))
+}
+
+#[tauri::command]
+fn rename_deck(state: State<AppState>, deck_id: i64, name: String) -> CmdResult<()> {
+    with_col!(state, col => col.rename_deck(deck_id, &name))
+}
+
+#[tauri::command]
+fn set_deck_description(state: State<AppState>, deck_id: i64, description: String) -> CmdResult<()> {
+    with_col!(state, col => col.set_deck_description(deck_id, &description))
+}
+
+#[tauri::command]
+fn delete_deck(state: State<AppState>, deck_id: i64) -> CmdResult<()> {
+    with_col!(state, col => col.delete_deck(deck_id))
+}
+
+#[tauri::command]
+fn update_deck_config(state: State<AppState>, deck_id: i64, config: DeckConfig) -> CmdResult<()> {
+    with_col!(state, col => col.update_deck_config(deck_id, config))
+}
+
+// ------------------------------------------------------------------ 学习
+
+#[tauri::command]
+fn study_state(state: State<AppState>, deck_id: i64) -> CmdResult<StudyState> {
+    with_col!(state, col => col.study_state(deck_id))
+}
+
+#[tauri::command]
+fn answer_card(
+    state: State<AppState>,
+    card_id: i64,
+    rating: u8,
+    duration_ms: i64,
+) -> CmdResult<StudyState> {
+    with_col!(state, col => col.answer_card(card_id, rating, duration_ms))
+}
+
+#[tauri::command]
+fn undo(state: State<AppState>) -> CmdResult<Option<StudyState>> {
+    with_col!(state, col => col.undo())
+}
+
+// ------------------------------------------------------------------ 导入
+
+#[tauri::command]
+async fn import_package(
+    app: AppHandle,
+    path: String,
+    options: Option<ImportOptions>,
+) -> CmdResult<ImportResult> {
+    let handle = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = handle.state::<AppState>();
+        let mut col = state
+            .0
+            .lock()
+            .map_err(|_| "数据库被占用，请重试".to_string())?;
+        let emitter = handle.clone();
+        col.import_package(
+            &PathBuf::from(path),
+            &options.unwrap_or_default(),
+            &move |p| {
+                let _ = emitter.emit("import-progress", p);
+            },
+        )
+        .map_err(err)
+    })
+    .await
+    .map_err(|e| format!("导入失败：{e}"))?
+}
+
+// ------------------------------------------------------------------ 浏览 / 编辑
+
+#[tauri::command]
+fn search_cards(state: State<AppState>, query: SearchQuery) -> CmdResult<SearchResult> {
+    with_col!(state, col => col.search_cards(&query))
+}
+
+#[tauri::command]
+fn card_detail(state: State<AppState>, card_id: i64) -> CmdResult<CardDetail> {
+    with_col!(state, col => col.card_detail(card_id))
+}
+
+#[tauri::command]
+fn add_note(
+    state: State<AppState>,
+    deck_id: i64,
+    front: String,
+    back: String,
+    tags: Option<String>,
+) -> CmdResult<i64> {
+    with_col!(state, col => col.add_basic_note(deck_id, &front, &back, tags.as_deref().unwrap_or("")))
+}
+
+#[tauri::command]
+fn update_note(
+    state: State<AppState>,
+    note_id: i64,
+    fields: Vec<String>,
+    tags: String,
+) -> CmdResult<()> {
+    with_col!(state, col => col.update_note(note_id, fields, &tags))
+}
+
+#[tauri::command]
+fn delete_notes(state: State<AppState>, note_ids: Vec<i64>) -> CmdResult<()> {
+    with_col!(state, col => col.delete_notes(&note_ids))
+}
+
+#[tauri::command]
+fn set_suspended(state: State<AppState>, card_ids: Vec<i64>, suspended: bool) -> CmdResult<()> {
+    with_col!(state, col => col.set_suspended(&card_ids, suspended))
+}
+
+#[tauri::command]
+fn forget_cards(state: State<AppState>, card_ids: Vec<i64>) -> CmdResult<()> {
+    with_col!(state, col => col.forget_cards(&card_ids))
+}
+
+// ------------------------------------------------------------------ 统计
+
+#[tauri::command]
+fn get_stats(state: State<AppState>, deck_id: Option<i64>) -> CmdResult<Stats> {
+    with_col!(state, col => col.stats(deck_id))
+}
+
+#[tauri::command]
+fn data_dir(app: AppHandle) -> CmdResult<String> {
+    app.path()
+        .app_data_dir()
+        .map(|p| p.to_string_lossy().into_owned())
+        .map_err(|e| e.to_string())
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            let dir = app.path().app_data_dir()?;
+            let col = Collection::open(&dir)
+                .map_err(|e| format!("无法打开数据目录 {}：{e}", dir.display()))?;
+            app.manage(AppState(Mutex::new(col)));
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            get_settings,
+            save_settings,
+            list_decks,
+            create_deck,
+            rename_deck,
+            set_deck_description,
+            delete_deck,
+            update_deck_config,
+            study_state,
+            answer_card,
+            undo,
+            import_package,
+            search_cards,
+            card_detail,
+            add_note,
+            update_note,
+            delete_notes,
+            set_suspended,
+            forget_cards,
+            get_stats,
+            data_dir,
+        ])
+        .run(tauri::generate_context!())
+        .expect("启动 Ankiki 失败");
+}
