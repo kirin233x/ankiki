@@ -6,6 +6,7 @@ import ImportDialog from "./components/ImportDialog";
 import AddNoteDialog from "./components/AddNoteDialog";
 import DeckOptionsDialog from "./components/DeckOptionsDialog";
 import PromptDialog from "./components/PromptDialog";
+import SyncDialog from "./components/SyncDialog";
 import Home from "./pages/Home";
 import Study from "./pages/Study";
 import Browse from "./pages/Browse";
@@ -34,6 +35,7 @@ interface AppCtx {
   editDeckOptions: (deck: DeckInfo) => void;
   createDeck: () => void;
   renameDeck: (deck: DeckInfo) => void;
+  openSync: () => void;
 }
 
 const Ctx = createContext<AppCtx>(null as unknown as AppCtx);
@@ -69,6 +71,7 @@ function Shell() {
   const [optionsDeck, setOptionsDeck] = useState<DeckInfo | null>(null);
   const [prompt, setPrompt] = useState<null | { kind: "create" } | { kind: "rename"; deck: DeckInfo }>(null);
   const [dropping, setDropping] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
   const systemDark = useSystemDark();
   const dark = settings.theme === "dark" || (settings.theme === "auto" && systemDark);
 
@@ -152,6 +155,7 @@ function Shell() {
       editDeckOptions: setOptionsDeck,
       createDeck: () => setPrompt({ kind: "create" }),
       renameDeck: (deck) => setPrompt({ kind: "rename", deck }),
+      openSync: () => setSyncOpen(true),
     }),
     [settings, saveSettings, decks, decksLoaded, refreshDecks, route, go, dark, startImport],
   );
@@ -261,6 +265,7 @@ function Shell() {
           }}
         />
       )}
+      {syncOpen && <SyncDialog onClose={() => setSyncOpen(false)} onDone={() => refreshDecks()} />}
       {dropping && <div className="drop-overlay">松开鼠标，导入 Anki 词书</div>}
     </Ctx.Provider>
   );

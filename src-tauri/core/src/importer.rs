@@ -43,7 +43,7 @@ impl Default for ImportOptions {
     }
 }
 
-struct AnkiNotetype {
+pub(crate) struct AnkiNotetype {
     name: String,
     kind: i64,
     css: String,
@@ -52,7 +52,16 @@ struct AnkiNotetype {
     templates: Vec<TemplateDef>,
 }
 
-struct AnkiNote {
+pub(crate) struct AnkiRevlog {
+    cid: i64,
+    ts_ms: i64,
+    ease: i64,
+    ivl: i64,
+    rtype: i64,
+    time_ms: i64,
+}
+
+pub(crate) struct AnkiNote {
     id: i64,
     guid: String,
     mid: i64,
@@ -60,7 +69,8 @@ struct AnkiNote {
     tags: String,
 }
 
-struct AnkiCard {
+pub(crate) struct AnkiCard {
+    id: i64,
     nid: i64,
     did: i64,
     ord: i64,
@@ -74,16 +84,17 @@ struct AnkiCard {
     data: String,
 }
 
-struct AnkiCollection {
+pub(crate) struct AnkiCollection {
     crt: i64,
+    revlog: Vec<AnkiRevlog>,
     notetypes: HashMap<i64, AnkiNotetype>,
     decks: HashMap<i64, String>,
-    notes: Vec<AnkiNote>,
+    pub(crate) notes: Vec<AnkiNote>,
     cards: Vec<AnkiCard>,
 }
 
 /// 删除临时文件的守卫
-struct TempFile(PathBuf);
+pub(crate) struct TempFile(pub PathBuf);
 impl Drop for TempFile {
     fn drop(&mut self) {
         let _ = std::fs::remove_file(&self.0);
@@ -290,6 +301,8 @@ impl Collection {
             (if is_new { 0 } else { 1 }, if c.ctype == 0 { c.due } else { 0 }, c.nid, c.ord)
         });
         report("正在生成卡片…", 0, cards.len() as u64);
+        let last_rev = last_review_map(anki);
+        let mut card_map: HashMap<i64, (i64, i64)> = HashMap::new(); // anki cid -> (our id, deck)
         {
             let mut ins = tx.prepare(
                 "INSERT INTO cards (note_id, deck_id, ord, state, due, interval, step, stability,
@@ -298,7 +311,13 @@ impl Collection {
             )?;
             for (pos, c) in cards.iter().enumerate() {
                 let note_id = note_map[&c.nid];
-                let p = convert_progress(c, anki.crt, now, opts.include_progress);
+                let p = convert_progress(
+                    c,
+                    anki.crt,
+                    now,
+                    opts.include_progress,
+                    last_rev.get(&c.id).copied(),
+                );
                 if p.state != STATE_NEW {
                     result.with_progress += 1;
                 }
@@ -318,16 +337,36 @@ impl Collection {
                     pos as i64,
                     now
                 ])?;
+                card_map.insert(c.id, (tx.last_insert_rowid(), deck_id));
                 result.cards_added += 1;
             }
         }
+        if opts.include_progress {
+            insert_revlog(&tx, anki, &card_map)?;
+        }
         tx.commit()?;
+
+        // 已经导入过的单词：用词书里的进度更新（取较新的一方）
+        if opts.include_progress && result.duplicates > 0 {
+            report("正在同步已有单词的学习进度…", 0, 0);
+            let up = self.apply_anki_progress(anki)?;
+            result.progress_updated = up.updated_cards;
+            if result.notes_added == 0 {
+                if let Some(d) = up.first_deck {
+                    result.deck_id = d;
+                    result.deck_name = self.deck_name(d)?;
+                }
+            }
+        }
 
         if result.notes_added == 0 {
             // 全部重复：删除空词书
             self.delete_deck(deck_id)?;
+            if result.progress_updated > 0 {
+                return Ok(result);
+            }
             return Err(anyhow!(
-                "这本词书里的 {} 个单词已经全部导入过了",
+                "这本词书里的 {} 个单词已经全部导入过了，也没有更新的学习进度",
                 result.duplicates
             ));
         }
@@ -346,7 +385,7 @@ struct Progress {
     last_review: i64,
 }
 
-fn convert_progress(c: &AnkiCard, crt: i64, now: i64, include: bool) -> Progress {
+fn convert_progress(c: &AnkiCard, crt: i64, now: i64, include: bool, last_rev: Option<i64>) -> Progress {
     let fresh = Progress {
         state: STATE_NEW,
         due: 0,
@@ -379,7 +418,7 @@ fn convert_progress(c: &AnkiCard, crt: i64, now: i64, include: bool) -> Progress
     let difficulty = fsrs_d
         .map(|d| d.clamp(1.0, 10.0))
         .unwrap_or_else(|| fsrs::difficulty_from_ease(c.factor));
-    let last_review = lrt.unwrap_or(if state == STATE_REVIEW {
+    let last_review = lrt.or(last_rev).unwrap_or(if state == STATE_REVIEW {
         due - ivl * 86400
     } else {
         now
@@ -472,7 +511,7 @@ fn parse_media_map(raw: &[u8]) -> Result<Vec<(String, String)>> {
     Ok(out)
 }
 
-fn read_collection(path: &Path) -> Result<AnkiCollection> {
+pub(crate) fn read_collection(path: &Path) -> Result<AnkiCollection> {
     let conn = Connection::open(path).context("无法读取词书数据库")?;
     // 新版 Anki 的表使用了自定义的 unicase 排序规则
     conn.create_collation("unicase", |a: &str, b: &str| {
@@ -523,7 +562,7 @@ fn read_collection(path: &Path) -> Result<AnkiCollection> {
         .prepare("SELECT data FROM cards LIMIT 0")
         .is_ok();
     let sql = format!(
-        "SELECT nid, did, odid, ord, type, queue, due, odue, ivl, factor, reps, lapses, {} FROM cards ORDER BY id",
+        "SELECT nid, did, odid, ord, type, queue, due, odue, ivl, factor, reps, lapses, {}, id FROM cards ORDER BY id",
         if has_data { "data" } else { "''" }
     );
     let cards = {
@@ -540,6 +579,7 @@ fn read_collection(path: &Path) -> Result<AnkiCollection> {
                 (did, due)
             };
             Ok(AnkiCard {
+                id: r.get(13)?,
                 nid: r.get(0)?,
                 did,
                 ord: r.get(3)?,
@@ -556,8 +596,29 @@ fn read_collection(path: &Path) -> Result<AnkiCollection> {
         rows.collect::<std::result::Result<Vec<_>, _>>()?
     };
 
+    // 复习记录（ease 为 0 的是手动调整，跳过）
+    let revlog = if has_table("revlog")? {
+        let mut stmt = conn.prepare(
+            "SELECT id, cid, ease, ivl, type, time FROM revlog WHERE ease BETWEEN 1 AND 4 ORDER BY id",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok(AnkiRevlog {
+                ts_ms: r.get(0)?,
+                cid: r.get(1)?,
+                ease: r.get(2)?,
+                ivl: r.get(3)?,
+                rtype: r.get(4)?,
+                time_ms: r.get(5)?,
+            })
+        })?;
+        rows.collect::<std::result::Result<Vec<_>, _>>()?
+    } else {
+        Vec::new()
+    };
+
     Ok(AnkiCollection {
         crt,
+        revlog,
         notetypes,
         decks,
         notes,
@@ -795,5 +856,149 @@ mod pb {
             out.push((field, value));
         }
         Ok(out)
+    }
+}
+
+/// 每张 Anki 卡片最后一次复习的时间（秒）
+pub(crate) fn last_review_map(anki: &AnkiCollection) -> HashMap<i64, i64> {
+    let mut m = HashMap::new();
+    for r in &anki.revlog {
+        let e = m.entry(r.cid).or_insert(0);
+        *e = (*e).max(r.ts_ms / 1000);
+    }
+    m
+}
+
+/// 把 Anki 复习记录写入 revlog（按 卡片+时间 去重）。返回新增条数
+pub(crate) fn insert_revlog(
+    conn: &Connection,
+    anki: &AnkiCollection,
+    card_map: &HashMap<i64, (i64, i64)>,
+) -> Result<i64> {
+    let mut existing: HashMap<i64, HashSet<i64>> = HashMap::new();
+    let mut first_seen: HashSet<i64> = HashSet::new();
+    let mut added = 0;
+    let mut sel = conn.prepare("SELECT ts FROM revlog WHERE card_id = ?")?;
+    let mut ins = conn.prepare(
+        "INSERT INTO revlog (card_id, deck_id, ts, rating, state, interval, duration_ms)
+         VALUES (?, ?, ?, ?, ?, ?, ?)",
+    )?;
+    for r in &anki.revlog {
+        let Some(&(card_id, deck_id)) = card_map.get(&r.cid) else { continue };
+        let seen = match existing.entry(card_id) {
+            std::collections::hash_map::Entry::Occupied(e) => e.into_mut(),
+            std::collections::hash_map::Entry::Vacant(e) => {
+                let rows = sel.query_map([card_id], |row| row.get::<_, i64>(0))?;
+                e.insert(rows.collect::<std::result::Result<_, _>>()?)
+            }
+        };
+        // 第一次作答记为「新卡」，便于统计每日新学
+        let is_first = first_seen.insert(r.cid);
+        if !seen.insert(r.ts_ms) {
+            continue;
+        }
+        let state = match r.rtype {
+            0 if is_first => STATE_NEW,
+            0 => STATE_LEARNING,
+            2 => STATE_RELEARNING,
+            _ => STATE_REVIEW,
+        };
+        ins.execute(params![
+            card_id,
+            deck_id,
+            r.ts_ms,
+            r.ease,
+            state,
+            r.ivl,
+            r.time_ms.clamp(0, 3_600_000)
+        ])?;
+        added += 1;
+    }
+    Ok(added)
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct ProgressUpdate {
+    pub matched_notes: i64,
+    pub updated_cards: i64,
+    pub skipped_newer: i64,
+    pub revlog_added: i64,
+    pub missing_notes: i64,
+    pub first_deck: Option<i64>,
+}
+
+impl Collection {
+    /// 按 guid 匹配已有单词，用 Anki 中较新的学习进度覆盖 Ankiki 中的进度
+    pub(crate) fn apply_anki_progress(&mut self, anki: &AnkiCollection) -> Result<ProgressUpdate> {
+        let now = now_secs();
+        let ours: HashMap<String, i64> = {
+            let mut stmt = self.conn.prepare("SELECT guid, id FROM notes")?;
+            let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))?;
+            rows.collect::<std::result::Result<_, _>>()?
+        };
+        let nid_guid: HashMap<i64, &str> = anki.notes.iter().map(|n| (n.id, n.guid.as_str())).collect();
+        let last_rev = last_review_map(anki);
+        let mut up = ProgressUpdate::default();
+        let mut matched: HashSet<i64> = HashSet::new();
+        let mut missing: HashSet<i64> = HashSet::new();
+        let mut card_map: HashMap<i64, (i64, i64)> = HashMap::new();
+
+        let tx = self.conn.unchecked_transaction()?;
+        {
+            let mut find = tx.prepare(
+                "SELECT id, deck_id, state, last_review FROM cards WHERE note_id = ? AND ord = ?",
+            )?;
+            let mut update = tx.prepare(
+                "UPDATE cards SET state = ?, due = ?, interval = ?, step = 0, stability = ?,
+                    difficulty = ?, reps = ?, lapses = ?, last_review = ?, suspended = ?
+                 WHERE id = ?",
+            )?;
+            for c in &anki.cards {
+                let Some(guid) = nid_guid.get(&c.nid) else { continue };
+                let Some(&note_id) = ours.get(*guid) else {
+                    missing.insert(c.nid);
+                    continue;
+                };
+                matched.insert(note_id);
+                let Some((card_id, deck_id, state, last_review)) = find
+                    .query_row(params![note_id, c.ord], |r| {
+                        Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?, r.get::<_, i64>(2)?, r.get::<_, i64>(3)?))
+                    })
+                    .optional()?
+                else {
+                    continue;
+                };
+                up.first_deck.get_or_insert(deck_id);
+                if c.ctype == 0 {
+                    // Anki 里还是新卡：不动 Ankiki 的进度
+                    continue;
+                }
+                let p = convert_progress(c, anki.crt, now, true, last_rev.get(&c.id).copied());
+                if state != STATE_NEW && last_review > p.last_review {
+                    up.skipped_newer += 1;
+                    continue;
+                }
+                update.execute(params![
+                    p.state,
+                    p.due,
+                    p.interval,
+                    p.stability,
+                    p.difficulty,
+                    p.reps,
+                    p.lapses,
+                    p.last_review,
+                    (c.queue == -1) as i64,
+                    card_id
+                ])?;
+                card_map.insert(c.id, (card_id, deck_id));
+                up.updated_cards += 1;
+            }
+        }
+        up.revlog_added = insert_revlog(&tx, anki, &card_map)?;
+        tx.commit()?;
+        self.undo = None;
+        up.matched_notes = matched.len() as i64;
+        up.missing_notes = missing.len() as i64;
+        Ok(up)
     }
 }

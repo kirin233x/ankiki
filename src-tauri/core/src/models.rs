@@ -126,6 +126,33 @@ pub struct ImportResult {
     pub duplicates: i64,
     pub media_files: i64,
     pub with_progress: i64,
+    /// 已存在的单词中，学习进度被更新的卡片数
+    pub progress_updated: i64,
+}
+
+/// 本机上找到的 Anki 用户
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnkiProfile {
+    pub name: String,
+    pub path: String,
+    /// 最后修改时间（秒）
+    pub modified: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncResult {
+    /// Anki 与 Ankiki 中都有的单词数
+    pub matched_notes: i64,
+    /// 学习进度被更新的卡片数
+    pub updated_cards: i64,
+    /// Ankiki 中更新、因此保留未覆盖的卡片数
+    pub skipped_newer: i64,
+    /// 新增的复习记录条数
+    pub revlog_added: i64,
+    /// Anki 中有、但 Ankiki 中还没有导入的单词数
+    pub missing_notes: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

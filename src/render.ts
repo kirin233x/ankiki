@@ -7,7 +7,12 @@ import { mediaUrl } from "./api";
 
 export interface RenderedSide {
   html: string;
+  /** 翻到这一面时需要自动播放的音频（答案面不含正面已播放过的） */
   sounds: string[];
+  /** 这一面上出现的全部音频（用于「重播」） */
+  allSounds: string[];
+  /** 这一面上的 TTS 朗读文本 */
+  tts: { text: string; lang: string }[];
 }
 
 type Node =
@@ -213,23 +218,39 @@ function processSounds(html: string, sounds: string[], autoplay: boolean): strin
   });
 }
 
+function collect(html: string) {
+  const allSounds: string[] = [];
+  const tts: { text: string; lang: string }[] = [];
+  html.replace(/data-sound="([^"]*)"/g, (_m, f: string) => {
+    allSounds.push(f.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'"));
+    return "";
+  });
+  html.replace(/data-tts="([^"]*)" data-lang="([^"]*)"/g, (_m, t: string, l: string) => {
+    tts.push({ text: t, lang: l });
+    return "";
+  });
+  return { allSounds, tts };
+}
+
 /** 渲染卡片的一面 */
 export function renderSide(card: CardView, side: "q" | "a", typedAnswer?: string): RenderedSide {
   const nt = card.notetype;
   const tpl = nt.kind === 1 ? nt.templates[0] : nt.templates[card.ord] ?? nt.templates[0];
-  if (!tpl) return { html: card.fields.join("<br>"), sounds: [] };
+  if (!tpl) return { html: card.fields.join("<br>"), sounds: [], allSounds: [], tts: [] };
   const fields: Record<string, string> = {};
   nt.fields.forEach((name, i) => (fields[name] = card.fields[i] ?? ""));
 
   const qHtml = renderNodes(parse(tpl.qfmt), fields, { card, side: "q" });
   const sounds: string[] = [];
   if (side === "q") {
-    return { html: processSounds(qHtml, sounds, true), sounds };
+    const html = processSounds(qHtml, sounds, true);
+    return { html, sounds, ...collect(html) };
   }
   // 答案面：FrontSide 部分的音频不自动重播
   const front = processSounds(qHtml, [], false);
   const aHtml = renderNodes(parse(tpl.afmt), fields, { card, side: "a", frontSide: front, typedAnswer });
-  return { html: processSounds(aHtml, sounds, true), sounds };
+  const html = processSounds(aHtml, sounds, true);
+  return { html, sounds, ...collect(html) };
 }
 
 /** 把相对路径的图片、音视频、CSS url() 改写为本地媒体 URL */

@@ -1,10 +1,10 @@
-import { Monitor, Moon, Sun } from "lucide-react";
+import { Monitor, Moon, RefreshCw, Sun } from "lucide-react";
 import { Settings } from "../api";
 import { useApp } from "../App";
 import { Switch } from "../components/ui";
 
 export default function SettingsPage() {
-  const { settings, saveSettings } = useApp();
+  const { settings, saveSettings, openSync } = useApp();
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => saveSettings({ ...settings, [k]: v });
 
   return (
@@ -97,6 +97,25 @@ export default function SettingsPage() {
                   </option>
                 ))}
               </select>
+            </div>
+          </div>
+        </div>
+
+        <div className="settings-group">
+          <h3>Anki</h3>
+          <div className="panel">
+            <div className="setting-row">
+              <div className="setting-text">
+                <b>从 Anki 同步学习进度</b>
+                <span>
+                  读取本机 Anki 的数据，把你在 Anki 里背过的进度和复习记录同步到已导入的同一本词书。
+                  可以反复同步，较新的进度会自动保留。
+                </span>
+              </div>
+              <button className="btn" onClick={openSync}>
+                <RefreshCw size={15} />
+                立即同步
+              </button>
             </div>
           </div>
         </div>

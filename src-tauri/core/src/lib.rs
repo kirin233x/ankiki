@@ -6,6 +6,7 @@ pub mod importer;
 pub mod models;
 pub mod scheduler;
 pub mod stats;
+pub mod sync;
 pub mod util;
 
 use anyhow::{anyhow, Result};

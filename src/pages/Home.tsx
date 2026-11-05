@@ -12,6 +12,7 @@ import {
   Pencil,
   Play,
   Plus,
+  RefreshCw,
   Settings2,
   Sparkles,
   Trash2,
@@ -51,6 +52,10 @@ export default function Home() {
             </div>
           </div>
           <div className="header-actions">
+            <button className="btn" onClick={app.openSync} title="把 Anki 里背过的进度同步过来">
+              <RefreshCw size={16} />
+              从 Anki 同步
+            </button>
             <button className="btn" onClick={app.createDeck}>
               <Plus size={16} />
               新建词书

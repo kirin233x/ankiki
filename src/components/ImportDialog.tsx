@@ -57,7 +57,7 @@ export default function ImportDialog(props: { path: string; onClose: () => void;
   if (phase === "done" && result) {
     return (
       <Modal
-        title="导入成功"
+        title={result.notesAdded > 0 ? "导入成功" : "学习进度已更新"}
         icon={<CheckCircle2 size={20} />}
         onClose={props.onClose}
         footer={
@@ -78,7 +78,16 @@ export default function ImportDialog(props: { path: string; onClose: () => void;
         }
       >
         <p style={{ margin: "0 0 14px", color: "var(--muted)" }}>
-          「<b style={{ color: "var(--text)" }}>{result.deckName}</b>」已加入你的词书。
+          {result.notesAdded > 0 ? (
+            <>
+              「<b style={{ color: "var(--text)" }}>{result.deckName}</b>」已加入你的词书。
+            </>
+          ) : (
+            <>
+              这本词书之前已经导入过，已用其中较新的学习进度更新了「
+              <b style={{ color: "var(--text)" }}>{result.deckName}</b>」中的 {result.progressUpdated} 张卡片。
+            </>
+          )}
         </p>
         <div className="result-grid">
           <div className="result-item">
@@ -100,7 +109,8 @@ export default function ImportDialog(props: { path: string; onClose: () => void;
         </div>
         {result.duplicates > 0 && (
           <p style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 14 }}>
-            已跳过 {result.duplicates} 个之前导入过的重复单词。
+            有 {result.duplicates} 个单词之前已经导入过，没有重复添加
+            {result.progressUpdated > 0 ? `，其中 ${result.progressUpdated} 张卡片的学习进度已更新` : ""}。
           </p>
         )}
       </Modal>
@@ -163,7 +173,7 @@ export default function ImportDialog(props: { path: string; onClose: () => void;
       <div className="check">
         <div className="check-text">
           <b>保留学习进度</b>
-          <span>如果词书里带有 Anki 的复习记录（间隔、到期日），一并导入</span>
+          <span>导入词书里的 Anki 复习进度与记录；已导入过的单词会更新为较新的进度</span>
         </div>
         <Switch on={includeProgress} onChange={setIncludeProgress} />
       </div>

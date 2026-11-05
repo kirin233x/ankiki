@@ -262,7 +262,7 @@ export async function mockInvoke<T>(cmd: string, args: Record<string, any> = {})
       words.forEach((w, i) =>
         cards.push({ id: nextId++, deckId: id, fields: [...w], state: 0, due: i, interval: 0, reps: 0, lapses: 0, difficulty: 0, stability: 0, suspended: false }),
       );
-      return r({ deckId: id, deckName: "四级核心词汇", notesAdded: 1254, cardsAdded: 1254, duplicates: 0, mediaFiles: 1254, withProgress: 0 });
+      return r({ deckId: id, deckName: "四级核心词汇", notesAdded: 1254, cardsAdded: 1254, duplicates: 0, mediaFiles: 1254, withProgress: 0, progressUpdated: 0 });
     }
     case "search_cards": {
       const q: SearchQuery = args.query;
@@ -309,6 +309,16 @@ export async function mockInvoke<T>(cmd: string, args: Record<string, any> = {})
           : [],
       });
     }
+    case "find_anki_profiles":
+      return r([
+        { name: "账户 1", path: "/Users/me/Library/Application Support/Anki2/账户 1/collection.anki2", modified: now() - 3600 },
+      ]);
+    case "sync_from_anki":
+      for (let i = 0; i < 6; i++) {
+        listeners.forEach((l) => l({ stage: i < 3 ? "正在读取 Anki 数据…" : "正在同步学习进度…", current: 0, total: 0 }));
+        await sleep(150);
+      }
+      return r({ matchedNotes: 1254, updatedCards: 386, skippedNewer: 2, revlogAdded: 2741, missingNotes: 3120 });
     case "set_suspended":
       for (const id of args.cardIds) cards.find((c) => c.id === id)!.suspended = args.suspended;
       return r(null);

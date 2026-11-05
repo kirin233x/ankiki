@@ -117,6 +117,30 @@ async fn import_package(
     .map_err(|e| format!("导入失败：{e}"))?
 }
 
+#[tauri::command]
+fn find_anki_profiles() -> Vec<AnkiProfile> {
+    ankiki_core::sync::find_anki_profiles()
+}
+
+#[tauri::command]
+async fn sync_from_anki(app: AppHandle, path: String) -> CmdResult<SyncResult> {
+    let handle = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = handle.state::<AppState>();
+        let mut col = state
+            .0
+            .lock()
+            .map_err(|_| "数据库被占用，请重试".to_string())?;
+        let emitter = handle.clone();
+        col.sync_from_anki(&PathBuf::from(path), &move |p| {
+            let _ = emitter.emit("import-progress", p);
+        })
+        .map_err(err)
+    })
+    .await
+    .map_err(|e| format!("同步失败：{e}"))?
+}
+
 // ------------------------------------------------------------------ 浏览 / 编辑
 
 #[tauri::command]
@@ -204,6 +228,8 @@ pub fn run() {
             answer_card,
             undo,
             import_package,
+            find_anki_profiles,
+            sync_from_anki,
             search_cards,
             card_detail,
             add_note,

@@ -5,8 +5,8 @@ import { useApp } from "../App";
 import CardFrame from "../components/CardFrame";
 import NoteEditor from "../components/NoteEditor";
 import { Modal, useToast } from "../components/ui";
-import { renderSide } from "../render";
-import { playSounds, stopAudio } from "../audio";
+import { renderSide, stripHtml } from "../render";
+import { playSounds, speak, stopAudio } from "../audio";
 import { STATE_COLOR, STATE_LABEL } from "../utils";
 
 const RATINGS = [
@@ -119,9 +119,21 @@ export default function Study({ deckId }: { deckId: number }) {
     }
   }, [toast]);
 
-  const replay = useCallback(() => {
-    if (card && rendered) playSounds(card.notetype.mediaDir, rendered.sounds);
-  }, [card, rendered]);
+  // 重播：播放这一面上的全部音频；没有音频（或无法播放）时用系统语音朗读单词
+  const replay = useCallback(async () => {
+    if (!card || !rendered) return;
+    if (rendered.allSounds.length) {
+      const ok = await playSounds(card.notetype.mediaDir, rendered.allSounds);
+      if (ok) return;
+      toast("音频文件无法播放，已改用系统朗读");
+    }
+    if (rendered.tts.length) {
+      speak(rendered.tts[0].text, rendered.tts[0].lang || undefined);
+      return;
+    }
+    const word = stripHtml((card.fields[0] ?? "").replace(/\[sound:[^\]]*\]/g, ""));
+    if (!speak(word)) toast("这张卡片没有音频", true);
+  }, [card, rendered, toast]);
 
   const suspend = useCallback(async () => {
     if (!card) return;
@@ -207,7 +219,7 @@ export default function Study({ deckId }: { deckId: number }) {
 
       {card && rendered && (
         <div className="study-stage">
-          <div className={`card-shell ${revealed ? "flip" : ""}`} key={`${card.cardId}-${revealed ? "a" : "q"}`}>
+          <div className="card-head">
             <span
               className="card-state"
               style={{
@@ -231,6 +243,8 @@ export default function Study({ deckId }: { deckId: number }) {
                 <Undo2 size={16} />
               </button>
             </div>
+          </div>
+          <div className={`card-shell ${revealed ? "flip" : ""}`} key={`${card.cardId}-${revealed ? "a" : "q"}`}>
             <CardFrame
               html={rendered.html}
               css={card.notetype.css}

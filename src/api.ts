@@ -83,6 +83,21 @@ export interface ImportResult {
   duplicates: number;
   mediaFiles: number;
   withProgress: number;
+  progressUpdated: number;
+}
+
+export interface AnkiProfile {
+  name: string;
+  path: string;
+  modified: number;
+}
+
+export interface SyncResult {
+  matchedNotes: number;
+  updatedCards: number;
+  skippedNewer: number;
+  revlogAdded: number;
+  missingNotes: number;
 }
 
 export interface Settings {
@@ -211,6 +226,9 @@ export const api = {
   importPackage: (path: string, options: { includeProgress: boolean; deckName?: string | null }) =>
     call<ImportResult>("import_package", { path, options }),
 
+  findAnkiProfiles: () => call<AnkiProfile[]>("find_anki_profiles"),
+  syncFromAnki: (path: string) => call<SyncResult>("sync_from_anki", { path }),
+
   searchCards: (query: SearchQuery) => call<SearchResult>("search_cards", { query }),
   cardDetail: (cardId: number) => call<CardDetail>("card_detail", { cardId }),
   addNote: (deckId: number, front: string, back: string, tags = "") =>
@@ -253,6 +271,19 @@ export async function pickPackage(): Promise<string | null> {
     multiple: false,
     directory: false,
     filters: [{ name: "Anki 词书", extensions: ["apkg", "colpkg"] }],
+  });
+  return typeof res === "string" ? res : null;
+}
+
+/** 手动选择 Anki 数据库 collection.anki2 */
+export async function pickAnkiCollection(): Promise<string | null> {
+  if (!isTauri) return "/mock/collection.anki2";
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const res = await open({
+    multiple: false,
+    directory: false,
+    title: "选择 Anki 数据库（collection.anki2）",
+    filters: [{ name: "Anki 数据库", extensions: ["anki2"] }],
   });
   return typeof res === "string" ? res : null;
 }
