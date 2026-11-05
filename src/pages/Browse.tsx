@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, CheckCheck, ChevronLeft, ChevronRight, Minus, Pause, Play, RotateCcw, Search, Trash2, Undo2, X } from "lucide-react";
+import { Check, CheckCheck, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Minus, Pause, Play, RotateCcw, Search, Trash2, Undo2, X } from "lucide-react";
 import { api, CardDetail, SearchResult } from "../api";
 import { useApp } from "../App";
 import CardFrame from "../components/CardFrame";
@@ -8,7 +8,17 @@ import { Confirm, useToast } from "../components/ui";
 import { renderSide } from "../render";
 import { formatDateTime, formatDays, formatDue, RATING_COLOR, RATING_LABEL, STATE_COLOR, STATE_LABEL } from "../utils";
 
-const PAGE = 50;
+const PAGE_SIZES = [50, 100, 200, 500];
+const PAGE_SIZE_KEY = "ankiki.browse.pageSize";
+
+function loadPageSize(): number {
+  try {
+    const v = Number(localStorage.getItem(PAGE_SIZE_KEY));
+    return PAGE_SIZES.includes(v) ? v : 100;
+  } catch {
+    return 100;
+  }
+}
 
 const STATES = [
   { key: "", label: "全部" },
@@ -42,6 +52,7 @@ export default function Browse({ initialDeck }: { initialDeck: number | null }) 
   const [sort, setSort] = useState("created");
   const [desc, setDesc] = useState(false);
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(loadPageSize);
   const [data, setData] = useState<SearchResult>({ total: 0, rows: [] });
   const [selected, setSelected] = useState<number | null>(null);
   const [detail, setDetail] = useState<CardDetail | null>(null);
@@ -72,12 +83,12 @@ export default function Browse({ initialDeck }: { initialDeck: number | null }) 
   const load = useCallback(async () => {
     try {
       setData(
-        await api.searchCards({ deckId, text: query, state, sort, desc, offset: page * PAGE, limit: PAGE }),
+        await api.searchCards({ deckId, text: query, state, sort, desc, offset: page * pageSize, limit: pageSize }),
       );
     } catch (e) {
       toast(String(e), true);
     }
-  }, [deckId, query, state, sort, desc, page, toast]);
+  }, [deckId, query, state, sort, desc, page, pageSize, toast]);
 
   useEffect(() => {
     load();
@@ -105,7 +116,7 @@ export default function Browse({ initialDeck }: { initialDeck: number | null }) 
   };
 
   const rendered = useMemo(() => (detail ? renderSide(detail.view, side) : null), [detail, side]);
-  const pages = Math.max(1, Math.ceil(data.total / PAGE));
+  const pages = Math.max(1, Math.ceil(data.total / pageSize));
 
   const pageIds = data.rows.map((r) => r.cardId);
   const pageAllChecked = pageIds.length > 0 && pageIds.every((id) => checked.has(id));
@@ -341,15 +352,48 @@ export default function Browse({ initialDeck }: { initialDeck: number | null }) 
           </table>
         </div>
         <div className="pager">
-          <span>
-            第 {page + 1} / {pages} 页
-          </span>
+          <span className="pager-total">共 {data.total} 张</span>
           <div className="pager-btns">
-            <button className="btn" disabled={page === 0} onClick={() => setPage(page - 1)}>
+            <span className="pager-label">每页</span>
+            <select
+              className="select pager-select"
+              value={pageSize}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                setPageSize(v);
+                setPage(0);
+                try {
+                  localStorage.setItem(PAGE_SIZE_KEY, String(v));
+                } catch {
+                  /* 忽略 */
+                }
+              }}
+            >
+              {PAGE_SIZES.map((n) => (
+                <option key={n} value={n}>
+                  {n} 个
+                </option>
+              ))}
+            </select>
+            <button className="btn pager-edge" disabled={page === 0} onClick={() => setPage(0)} title="第一页">
+              <ChevronsLeft size={16} />
+            </button>
+            <button className="btn" disabled={page === 0} onClick={() => setPage(page - 1)} title="上一页">
               <ChevronLeft size={16} />
             </button>
-            <button className="btn" disabled={page + 1 >= pages} onClick={() => setPage(page + 1)}>
+            <span className="pager-label">
+              {page + 1} / {pages}
+            </span>
+            <button className="btn" disabled={page + 1 >= pages} onClick={() => setPage(page + 1)} title="下一页">
               <ChevronRight size={16} />
+            </button>
+            <button
+              className="btn pager-edge"
+              disabled={page + 1 >= pages}
+              onClick={() => setPage(pages - 1)}
+              title="最后一页"
+            >
+              <ChevronsRight size={16} />
             </button>
           </div>
         </div>
@@ -451,6 +495,7 @@ export default function Browse({ initialDeck }: { initialDeck: number | null }) 
             <button
               className="btn"
               disabled={detail.row.state === 0}
+              title="重置为新卡，清空学习进度"
               onClick={async () => {
                 await api.forgetCards([detail.row.cardId]);
                 toast("已重置为新卡");
@@ -458,11 +503,10 @@ export default function Browse({ initialDeck }: { initialDeck: number | null }) 
               }}
             >
               <RotateCcw size={15} />
-              重置进度
+              重置
             </button>
-            <button className="btn btn-danger" style={{ marginLeft: "auto" }} onClick={() => setConfirmDelete(true)}>
+            <button className="btn btn-danger" title="删除" onClick={() => setConfirmDelete(true)}>
               <Trash2 size={15} />
-              删除
             </button>
           </div>
         </aside>

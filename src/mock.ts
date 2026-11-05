@@ -301,7 +301,7 @@ export async function mockInvoke<T>(cmd: string, args: Record<string, any> = {})
       const c = cards.find((x) => x.id === args.cardId)!;
       return r({
         view: view(c),
-        row: { cardId: c.id, noteId: c.id, deckId: c.deckId, deckName: "", front: c.fields[0], back: c.fields[2], state: c.state, due: c.due, interval: c.interval, stability: c.stability, difficulty: c.difficulty, reps: c.reps, lapses: c.lapses, suspended: c.suspended, tags: "" },
+        row: { cardId: c.id, noteId: c.id, deckId: c.deckId, deckName: "", front: c.fields[0], back: c.fields[2], state: c.state, due: c.due, interval: c.interval, stability: c.stability, difficulty: c.difficulty, reps: c.reps, lapses: c.lapses, suspended: c.suspended, known: !!c.known, tags: "" },
         retrievability: c.state ? 0.87 : null,
         lastReview: now() - 86400 * 3,
         createdAt: now() - 86400 * 30,
