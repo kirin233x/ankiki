@@ -293,7 +293,7 @@ export default function Browse({ initialDeck }: { initialDeck: number | null }) 
                   style={{ opacity: r.suspended || r.known ? 0.55 : 1 }}
                 >
                   <td
-                    className="check"
+                    className="cell-check"
                     onClick={(e) => {
                       e.stopPropagation();
                       toggleRow(i, e.shiftKey);

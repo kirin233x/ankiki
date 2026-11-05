@@ -262,9 +262,11 @@ button {
 .main {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   position: relative;
+  overflow: hidden;
 }
 .main-drag {
   height: 28px;
@@ -866,7 +868,8 @@ kbd,
 .study {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   padding: 0 32px 22px;
 }
 .study-top {
@@ -1545,7 +1548,8 @@ input[type="range"]::-webkit-slider-thumb {
 
 .browse {
   display: flex;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   gap: 0;
 }
 .browse-main {
@@ -1720,7 +1724,7 @@ table.cards td.num {
 }
 
 .drawer {
-  width: 420px;
+  width: clamp(340px, 36vw, 440px);
   flex-shrink: 0;
   border-left: 1px solid var(--border);
   background: var(--panel);
@@ -1818,7 +1822,8 @@ table.cards td.num {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  padding: 14px 20px;
+  flex-shrink: 0;
+  padding: 14px 20px 18px;
   border-top: 1px solid var(--border);
 }
 
@@ -2154,7 +2159,7 @@ table.cards .c-check {
   width: 44px;
   padding-right: 0;
 }
-table.cards td.check {
+table.cards td.cell-check {
   padding-right: 0;
 }
 .cbox {
