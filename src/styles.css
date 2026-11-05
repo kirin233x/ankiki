@@ -2047,3 +2047,166 @@ table.cards td.num {
 .browse.has-drawer .col-optional {
   display: none;
 }
+
+/* ------------------------------------------------------------------ sift（快速过词） */
+
+.sift-stat {
+  min-width: 140px;
+  text-align: right;
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.sift-stat b {
+  color: var(--text);
+  font-size: 15px;
+}
+.sift-session {
+  display: flex;
+  gap: 14px;
+  font-size: 12.5px;
+  font-weight: 650;
+}
+.sift-session span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.sift-shell {
+  max-width: 760px;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+.sift-shell.flash-known {
+  border-color: var(--good);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--good) 22%, transparent), var(--shadow-lg);
+}
+.sift-shell.flash-keep {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent), var(--shadow-lg);
+}
+.sift-bar {
+  max-width: 760px;
+  gap: 16px;
+}
+.sift-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  text-align: left;
+  position: relative;
+  transition: transform 0.12s, box-shadow 0.15s, border-color 0.15s;
+  --c: var(--good);
+}
+.sift-btn.keep {
+  --c: var(--accent);
+}
+.sift-btn:hover {
+  border-color: var(--c);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px -12px var(--c);
+}
+.sift-btn:active {
+  transform: scale(0.98);
+}
+.sift-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: white;
+  background: var(--c);
+  flex-shrink: 0;
+  box-shadow: 0 6px 14px -6px var(--c);
+}
+.sift-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+.sift-text b {
+  font-size: 16px;
+  color: var(--c);
+}
+.sift-text small {
+  font-size: 12px;
+  color: var(--muted);
+}
+.sift-btn kbd {
+  align-self: flex-start;
+}
+.sift-hint {
+  font-size: 12px;
+  color: var(--faint);
+  margin-top: -6px;
+}
+
+/* ------------------------------------------------------------------ 批量操作 */
+
+table.cards .c-check {
+  width: 44px;
+  padding-right: 0;
+}
+table.cards td.check {
+  padding-right: 0;
+}
+.cbox {
+  width: 17px;
+  height: 17px;
+  border-radius: 5px;
+  border: 1.5px solid var(--border-strong);
+  background: var(--panel);
+  display: inline-grid;
+  place-items: center;
+  color: white;
+  cursor: pointer;
+  vertical-align: middle;
+  transition: background 0.12s, border-color 0.12s;
+}
+.cbox.on,
+.cbox.some {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 10px 8px 16px;
+  margin-bottom: 12px;
+  border-radius: 14px;
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  animation: fadeIn 0.15s ease;
+}
+.batch-bar .count {
+  font-weight: 650;
+  color: var(--accent-text);
+  margin-right: auto;
+  font-size: 13px;
+}
+.batch-bar .btn {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12.5px;
+}
+.select-all-tip {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin: -4px 0 10px 4px;
+}
+.select-all-tip button {
+  border: none;
+  background: none;
+  color: var(--accent-text);
+  font-weight: 600;
+  padding: 0 4px;
+}

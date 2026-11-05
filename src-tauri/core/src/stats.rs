@@ -90,18 +90,21 @@ impl Collection {
         } else {
             "WHERE (?1 IS NULL OR 1)"
         };
-        let counts: (i64, i64, i64, i64, i64, i64) = self.conn.query_row(
+        let counts: (i64, i64, i64, i64, i64, i64, i64) = self.conn.query_row(
             &format!(
                 "SELECT COUNT(*),
                     COALESCE(SUM(state = 0 AND suspended = 0), 0),
                     COALESCE(SUM(state IN (1, 3) AND suspended = 0), 0),
                     COALESCE(SUM(state = 2 AND interval < 21 AND suspended = 0), 0),
                     COALESCE(SUM(state = 2 AND interval >= 21 AND suspended = 0), 0),
-                    COALESCE(SUM(suspended), 0)
+                    COALESCE(SUM(suspended = 1), 0),
+                    COALESCE(SUM(suspended = 2), 0)
                  FROM cards {card_filter}"
             ),
             params![deck_arg],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?)),
+            |r| {
+                Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?))
+            },
         )?;
         (
             s.total_cards,
@@ -110,6 +113,7 @@ impl Collection {
             s.young_cards,
             s.mature_cards,
             s.suspended_cards,
+            s.known_cards,
         ) = counts;
 
         // 未来 30 天到期预测 & 间隔分布

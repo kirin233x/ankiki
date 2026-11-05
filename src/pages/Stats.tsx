@@ -78,6 +78,7 @@ export default function StatsPage({ initialDeck }: { initialDeck: number | null 
                     { label: "学习中", value: s.learningCards, color: "#f97316" },
                     { label: "复习中", value: s.youngCards, color: "#6ee7b7" },
                     { label: "已掌握", value: s.matureCards, color: "#10b981" },
+                    { label: "熟词", value: s.knownCards, color: "#a99cff" },
                     { label: "已暂停", value: s.suspendedCards, color: "#c4c8d6" },
                   ]}
                 />
@@ -222,7 +223,7 @@ function Donut({ parts }: { parts: { label: string; value: number; color: string
             return el;
           })}
         <text x="75" y="72" textAnchor="middle" className="donut-center" fill="var(--text)">
-          {total > 0 ? Math.round(((parts[3]?.value ?? 0) / total) * 100) : 0}%
+          {total > 0 ? Math.round((((parts[3]?.value ?? 0) + (parts[4]?.value ?? 0)) / total) * 100) : 0}%
         </text>
         <text x="75" y="92" textAnchor="middle" fontSize="11" fill="var(--muted)">
           已掌握

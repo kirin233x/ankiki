@@ -950,7 +950,8 @@ impl Collection {
             )?;
             let mut update = tx.prepare(
                 "UPDATE cards SET state = ?, due = ?, interval = ?, step = 0, stability = ?,
-                    difficulty = ?, reps = ?, lapses = ?, last_review = ?, suspended = ?
+                    difficulty = ?, reps = ?, lapses = ?, last_review = ?,
+                    suspended = CASE WHEN suspended = 2 THEN 2 ELSE ? END
                  WHERE id = ?",
             )?;
             for c in &anki.cards {

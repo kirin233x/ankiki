@@ -54,7 +54,8 @@ fn row_from(r: &rusqlite::Row) -> rusqlite::Result<(CardRow, i64, i64)> {
             difficulty: r.get(11)?,
             reps: r.get(12)?,
             lapses: r.get(13)?,
-            suspended: r.get::<_, i64>(14)? != 0,
+            suspended: r.get::<_, i64>(14)? == 1,
+            known: r.get::<_, i64>(14)? == 2,
             tags: r.get(15)?,
         },
         r.get(16)?,
@@ -67,7 +68,7 @@ fn escape_like(s: &str) -> String {
 }
 
 impl Collection {
-    pub fn search_cards(&self, q: &SearchQuery) -> Result<SearchResult> {
+    fn search_where(&self, q: &SearchQuery) -> (String, Vec<SqlValue>) {
         let mut where_sql = vec!["1 = 1".to_string()];
         let mut args: Vec<SqlValue> = vec![];
         if let Some(d) = q.deck_id {
@@ -93,13 +94,30 @@ impl Collection {
             "learning" => where_sql.push("c.state IN (1, 3) AND c.suspended = 0".into()),
             "review" => where_sql.push("c.state = 2 AND c.suspended = 0".into()),
             "suspended" => where_sql.push("c.suspended = 1".into()),
+            "known" => where_sql.push("c.suspended = 2".into()),
             "due" => {
                 where_sql.push("c.state != 0 AND c.suspended = 0 AND c.due < ?".into());
                 args.push(day_end.into());
             }
             _ => {}
         }
-        let where_clause = where_sql.join(" AND ");
+        (where_sql.join(" AND "), args)
+    }
+
+    /// 符合搜索条件的全部卡片 id（用于「全选」批量操作）
+    pub fn search_card_ids(&self, q: &SearchQuery) -> Result<Vec<i64>> {
+        let (where_clause, args) = self.search_where(q);
+        let mut stmt = self.conn.prepare(&format!(
+            "SELECT c.id FROM cards c JOIN notes n ON n.id = c.note_id WHERE {where_clause} ORDER BY c.id"
+        ))?;
+        let ids = stmt
+            .query_map(rusqlite::params_from_iter(args.iter()), |r| r.get(0))?
+            .collect::<std::result::Result<Vec<i64>, _>>()?;
+        Ok(ids)
+    }
+
+    pub fn search_cards(&self, q: &SearchQuery) -> Result<SearchResult> {
+        let (where_clause, args) = self.search_where(q);
         let order = match q.sort.as_str() {
             "sort" => "n.sort_field COLLATE NOCASE",
             "due" => "(c.state = 0), CASE WHEN c.state = 0 THEN c.position ELSE c.due END",

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { Check, CheckCheck, ChevronLeft, ChevronRight, Minus, Pause, Play, RotateCcw, Search, Trash2, Undo2, X } from "lucide-react";
 import { api, CardDetail, SearchResult } from "../api";
 import { useApp } from "../App";
 import CardFrame from "../components/CardFrame";
@@ -16,6 +16,7 @@ const STATES = [
   { key: "new", label: "新卡", color: "var(--new)" },
   { key: "learning", label: "学习中", color: "var(--learn)" },
   { key: "review", label: "复习中", color: "var(--review)" },
+  { key: "known", label: "熟词", color: "#a99cff" },
   { key: "suspended", label: "已暂停", color: "var(--faint)" },
 ];
 
@@ -46,6 +47,18 @@ export default function Browse({ initialDeck }: { initialDeck: number | null }) 
   const [detail, setDetail] = useState<CardDetail | null>(null);
   const [side, setSide] = useState<"q" | "a">("q");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // 批量选择
+  const [checked, setChecked] = useState<Set<number>>(new Set());
+  const [allMatching, setAllMatching] = useState(false);
+  const [lastIndex, setLastIndex] = useState<number | null>(null);
+  const [confirmBatchDelete, setConfirmBatchDelete] = useState(false);
+
+  // 筛选条件变化时清空选择
+  useEffect(() => {
+    setChecked(new Set());
+    setAllMatching(false);
+    setLastIndex(null);
+  }, [deckId, query, state]);
 
   // 输入防抖
   useEffect(() => {
@@ -93,6 +106,60 @@ export default function Browse({ initialDeck }: { initialDeck: number | null }) 
 
   const rendered = useMemo(() => (detail ? renderSide(detail.view, side) : null), [detail, side]);
   const pages = Math.max(1, Math.ceil(data.total / PAGE));
+
+  const pageIds = data.rows.map((r) => r.cardId);
+  const pageAllChecked = pageIds.length > 0 && pageIds.every((id) => checked.has(id));
+  const pageSomeChecked = pageIds.some((id) => checked.has(id));
+
+  const toggleRow = (index: number, shift: boolean) => {
+    const id = data.rows[index].cardId;
+    const next = new Set(checked);
+    const on = !next.has(id);
+    if (shift && lastIndex != null) {
+      const [a, b] = lastIndex < index ? [lastIndex, index] : [index, lastIndex];
+      for (let i = a; i <= b; i++) on ? next.add(data.rows[i].cardId) : next.delete(data.rows[i].cardId);
+    } else {
+      on ? next.add(id) : next.delete(id);
+    }
+    setChecked(next);
+    setAllMatching(false);
+    setLastIndex(index);
+  };
+
+  const togglePage = () => {
+    const next = new Set(checked);
+    if (pageAllChecked) pageIds.forEach((id) => next.delete(id));
+    else pageIds.forEach((id) => next.add(id));
+    setChecked(next);
+    setAllMatching(false);
+  };
+
+  const selectAllMatching = async () => {
+    try {
+      const ids = await api.searchCardIds({ deckId, text: query, state });
+      setChecked(new Set(ids));
+      setAllMatching(true);
+    } catch (e) {
+      toast(String(e), true);
+    }
+  };
+
+  const clearChecked = () => {
+    setChecked(new Set());
+    setAllMatching(false);
+  };
+
+  const batch = async (fn: (ids: number[]) => Promise<void>, msg: string) => {
+    const ids = [...checked];
+    try {
+      await fn(ids);
+      toast(msg.replace("{n}", String(ids.length)));
+      clearChecked();
+      refreshAll();
+    } catch (e) {
+      toast(String(e), true);
+    }
+  };
 
   const toggleSort = (key?: string) => {
     if (!key) return;
@@ -154,10 +221,53 @@ export default function Browse({ initialDeck }: { initialDeck: number | null }) 
             </button>
           ))}
         </div>
+        {checked.size > 0 && (
+          <div className="batch-bar">
+            <span className="count">已选 {checked.size} 张</span>
+            <button className="btn" onClick={() => batch((ids) => api.setKnown(ids, true), "已将 {n} 张标为熟词")}>
+              <CheckCheck size={14} />
+              标为熟词
+            </button>
+            <button className="btn" onClick={() => batch((ids) => api.setKnown(ids, false), "已取消 {n} 张熟词")}>
+              <Undo2 size={14} />
+              取消熟词
+            </button>
+            <button className="btn" onClick={() => batch((ids) => api.setSuspended(ids, true), "已暂停 {n} 张")}>
+              <Pause size={14} />
+              暂停
+            </button>
+            <button className="btn" onClick={() => batch((ids) => api.setSuspended(ids, false), "已恢复 {n} 张")}>
+              <Play size={14} />
+              恢复
+            </button>
+            <button className="btn" onClick={() => batch((ids) => api.forgetCards(ids), "已重置 {n} 张")}>
+              <RotateCcw size={14} />
+              重置进度
+            </button>
+            <button className="btn btn-danger" onClick={() => setConfirmBatchDelete(true)}>
+              <Trash2 size={14} />
+              删除
+            </button>
+            <button className="icon-btn" title="取消选择" onClick={clearChecked}>
+              <X size={16} />
+            </button>
+          </div>
+        )}
+        {pageAllChecked && !allMatching && data.total > data.rows.length && (
+          <div className="select-all-tip">
+            已选中本页 {data.rows.length} 张。
+            <button onClick={selectAllMatching}>选择全部 {data.total} 张符合条件的卡片</button>
+          </div>
+        )}
         <div className="table-wrap">
           <table className="cards">
             <thead>
               <tr>
+                <th className="c-check" onClick={togglePage}>
+                  <span className={`cbox ${pageAllChecked ? "on" : pageSomeChecked ? "some" : ""}`}>
+                    {pageAllChecked ? <Check size={12} strokeWidth={3} /> : pageSomeChecked ? <Minus size={12} strokeWidth={3} /> : null}
+                  </span>
+                </th>
                 {COLUMNS.map((c) => (
                   <th
                     key={c.key}
@@ -172,13 +282,27 @@ export default function Browse({ initialDeck }: { initialDeck: number | null }) 
               </tr>
             </thead>
             <tbody>
-              {data.rows.map((r) => (
+              {data.rows.map((r, i) => (
                 <tr
                   key={r.cardId}
-                  className={selected === r.cardId ? "selected" : ""}
-                  onClick={() => setSelected(r.cardId === selected ? null : r.cardId)}
-                  style={{ opacity: r.suspended ? 0.5 : 1 }}
+                  className={selected === r.cardId || checked.has(r.cardId) ? "selected" : ""}
+                  onClick={(e) => {
+                    if (e.shiftKey || e.metaKey || e.ctrlKey) toggleRow(i, e.shiftKey);
+                    else setSelected(r.cardId === selected ? null : r.cardId);
+                  }}
+                  style={{ opacity: r.suspended || r.known ? 0.55 : 1 }}
                 >
+                  <td
+                    className="check"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleRow(i, e.shiftKey);
+                    }}
+                  >
+                    <span className={`cbox ${checked.has(r.cardId) ? "on" : ""}`}>
+                      {checked.has(r.cardId) && <Check size={12} strokeWidth={3} />}
+                    </span>
+                  </td>
                   <td className="front" title={r.front}>
                     {r.front || "（空）"}
                   </td>
@@ -189,12 +313,15 @@ export default function Browse({ initialDeck }: { initialDeck: number | null }) 
                     {r.deckName}
                   </td>
                   <td>
-                    <span className="state-dot" style={{ color: r.suspended ? "var(--faint)" : STATE_COLOR[r.state] }}>
+                    <span
+                      className="state-dot"
+                      style={{ color: r.known ? "#8b7bff" : r.suspended ? "var(--faint)" : STATE_COLOR[r.state] }}
+                    >
                       <i style={{ background: "currentColor" }} />
-                      {r.suspended ? "已暂停" : STATE_LABEL[r.state]}
+                      {r.known ? "熟词" : r.suspended ? "已暂停" : STATE_LABEL[r.state]}
                     </span>
                   </td>
-                  <td className="num">{formatDue(r.due, r.state)}</td>
+                  <td className="num">{r.known ? "—" : formatDue(r.due, r.state)}</td>
                   <td className="num col-optional">{r.state === 0 ? "—" : formatDays(r.interval)}</td>
                   <td className="num col-optional">
                     {r.difficulty > 0 ? <DifficultyBar value={r.difficulty} /> : "—"}
@@ -205,7 +332,7 @@ export default function Browse({ initialDeck }: { initialDeck: number | null }) 
               ))}
               {data.rows.length === 0 && (
                 <tr>
-                  <td colSpan={COLUMNS.length} style={{ textAlign: "center", padding: 60, color: "var(--muted)" }}>
+                  <td colSpan={COLUMNS.length + 1} style={{ textAlign: "center", padding: 60, color: "var(--muted)" }}>
                     没有找到符合条件的卡片
                   </td>
                 </tr>
@@ -257,7 +384,10 @@ export default function Browse({ initialDeck }: { initialDeck: number | null }) 
               />
             </div>
             <div className="info-grid">
-              <Info label="状态" value={detail.row.suspended ? "已暂停" : STATE_LABEL[detail.row.state]} />
+              <Info
+                label="状态"
+                value={detail.row.known ? "熟词" : detail.row.suspended ? "已暂停" : STATE_LABEL[detail.row.state]}
+              />
               <Info label="下次复习" value={formatDue(detail.row.due, detail.row.state)} />
               <Info label="当前间隔" value={detail.row.state === 0 ? "—" : formatDays(detail.row.interval)} />
               <Info
@@ -299,6 +429,17 @@ export default function Browse({ initialDeck }: { initialDeck: number | null }) 
             <button
               className="btn"
               onClick={async () => {
+                await api.setKnown([detail.row.cardId], !detail.row.known);
+                toast(detail.row.known ? "已取消熟词" : "已标为熟词");
+                refreshAll();
+              }}
+            >
+              {detail.row.known ? <Undo2 size={15} /> : <CheckCheck size={15} />}
+              {detail.row.known ? "取消熟词" : "熟词"}
+            </button>
+            <button
+              className="btn"
+              onClick={async () => {
                 await api.setSuspended([detail.row.cardId], !detail.row.suspended);
                 toast(detail.row.suspended ? "已恢复" : "已暂停");
                 refreshAll();
@@ -327,6 +468,19 @@ export default function Browse({ initialDeck }: { initialDeck: number | null }) 
         </aside>
       )}
 
+      {confirmBatchDelete && (
+        <Confirm
+          title={`删除 ${checked.size} 张卡片？`}
+          danger
+          confirmText="删除"
+          message="选中卡片所属的单词及其全部卡片和复习记录将被永久删除，无法恢复。"
+          onClose={() => setConfirmBatchDelete(false)}
+          onConfirm={() => {
+            setSelected(null);
+            batch((ids) => api.deleteCards(ids), "已删除 {n} 张");
+          }}
+        />
+      )}
       {confirmDelete && detail && (
         <Confirm
           title="删除这个单词？"

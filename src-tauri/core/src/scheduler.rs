@@ -29,7 +29,8 @@ pub struct Card {
     pub reps: i64,
     pub lapses: i64,
     pub last_review: i64,
-    pub suspended: bool,
+    /// 0 正常，1 已暂停，2 熟词（已忽略）
+    pub suspended: i64,
     pub position: i64,
 }
 
@@ -241,7 +242,7 @@ impl Collection {
                         reps: r.get(10)?,
                         lapses: r.get(11)?,
                         last_review: r.get(12)?,
-                        suspended: r.get::<_, i64>(13)? != 0,
+                        suspended: r.get(13)?,
                         position: r.get(14)?,
                     })
                 },
@@ -265,7 +266,7 @@ impl Collection {
                 c.reps,
                 c.lapses,
                 c.last_review,
-                c.suspended as i64,
+                c.suspended,
                 c.position,
                 c.id
             ],
@@ -527,7 +528,7 @@ mod tests {
             reps: 0,
             lapses: 0,
             last_review: 0,
-            suspended: false,
+            suspended: 0,
             position: 0,
         }
     }

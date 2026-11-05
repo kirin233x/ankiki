@@ -67,6 +67,7 @@ interface MCard {
   difficulty: number;
   stability: number;
   suspended: boolean;
+  known?: boolean;
 }
 
 let nextId = 100;
@@ -112,11 +113,11 @@ let lastUndo: MCard | null = null;
 
 function view(c: MCard): CardView {
   const d = decks.find((x) => x.id === c.deckId)!;
-  return { cardId: c.id, noteId: c.id, deckId: d.id, deckName: d.name, ord: 0, state: c.state, fields: c.fields, tags: "", notetype: vocabNt };
+  return { cardId: c.id, noteId: c.id, deckId: d.id, deckName: d.name, ord: 0, state: c.state, position: c.state === 0 ? c.due : 0, fields: c.fields, tags: "", notetype: vocabNt };
 }
 
 function counts(deckId: number) {
-  const cs = cards.filter((c) => c.deckId === deckId && !c.suspended);
+  const cs = cards.filter((c) => c.deckId === deckId && !c.suspended && !c.known);
   const d = decks.find((x) => x.id === deckId)!;
   return {
     new: Math.min(d.config.newPerDay, cs.filter((c) => c.state === 0).length),
@@ -126,7 +127,7 @@ function counts(deckId: number) {
 }
 
 function studyState(deckId: number): StudyState {
-  const cs = cards.filter((c) => c.deckId === deckId && !c.suspended);
+  const cs = cards.filter((c) => c.deckId === deckId && !c.suspended && !c.known);
   const ct = counts(deckId);
   const card =
     cs.find((c) => (c.state === 1 || c.state === 3) && c.due <= now()) ??
@@ -152,7 +153,8 @@ function deckInfo(): DeckInfo[] {
       ...d,
       due: d.id === 3 ? { new: 0, learning: 0, review: 0 } : counts(d.id),
       totalCards: total,
-      newCards: cs.filter((c) => c.state === 0).length,
+      newCards: cs.filter((c) => c.state === 0 && !c.known).length,
+      knownCards: cs.filter((c) => c.known).length,
       learnedCards: cs.filter((c) => c.state !== 0).length,
       matureCards: cs.filter((c) => c.state === 2 && c.interval >= 21).length,
       suspendedCards: cs.filter((c) => c.suspended).length,
@@ -181,6 +183,7 @@ function stats(): Stats {
     youngCards: 18,
     matureCards: 11,
     suspendedCards: 1,
+    knownCards: cards.filter((c) => c.known).length + 37,
     retention30d: 0.893,
     avgDaily: 64.2,
     daysStudied: 131,
@@ -271,6 +274,7 @@ export async function mockInvoke<T>(cmd: string, args: Record<string, any> = {})
       if (q.state === "new") rs = rs.filter((c) => c.state === 0);
       if (q.state === "review") rs = rs.filter((c) => c.state === 2);
       if (q.state === "suspended") rs = rs.filter((c) => c.suspended);
+      if (q.state === "known") rs = rs.filter((c) => c.known);
       return r({
         total: rs.length,
         rows: rs.slice(q.offset ?? 0, (q.offset ?? 0) + (q.limit ?? 50)).map((c) => ({
@@ -288,6 +292,7 @@ export async function mockInvoke<T>(cmd: string, args: Record<string, any> = {})
           reps: c.reps,
           lapses: c.lapses,
           suspended: c.suspended,
+          known: !!c.known,
           tags: "",
         })),
       });
@@ -319,6 +324,37 @@ export async function mockInvoke<T>(cmd: string, args: Record<string, any> = {})
         await sleep(150);
       }
       return r({ matchedNotes: 1254, updatedCards: 386, skippedNewer: 2, revlogAdded: 2741, missingNotes: 3120 });
+    case "set_known":
+      for (const id of args.cardIds) cards.find((c) => c.id === id)!.known = args.known;
+      return r(null);
+    case "search_card_ids":
+      return r(cards.filter((c) => (args.query.deckId ? c.deckId === args.query.deckId : true)).map((c) => c.id));
+    case "delete_cards":
+      for (const id of args.cardIds) cards.splice(cards.findIndex((c) => c.id === id), 1);
+      return r(null);
+    case "sift_batch": {
+      const pending = cards.filter(
+        (c) => c.deckId === args.deckId && c.state === 0 && !c.suspended && !c.known && c.due >= 0,
+      );
+      return r({
+        cards: pending.filter((c) => !args.exclude.includes(c.id)).slice(0, args.limit).map(view),
+        remaining: pending.length,
+        totalNew: cards.filter((c) => c.deckId === args.deckId && c.state === 0 && !c.known).length,
+        known: cards.filter((c) => c.deckId === args.deckId && c.known).length,
+      });
+    }
+    case "sift_answer": {
+      const c = cards.find((x) => x.id === args.cardId)!;
+      if (args.known) c.known = true;
+      else c.due = -1000 + c.due;
+      return r(null);
+    }
+    case "sift_undo": {
+      const c = cards.find((x) => x.id === args.cardId)!;
+      c.known = false;
+      c.due = args.position;
+      return r(null);
+    }
     case "set_suspended":
       for (const id of args.cardIds) cards.find((c) => c.id === id)!.suspended = args.suspended;
       return r(null);

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, BarChart3, Clock, Home as HomeIcon, Pause, Pencil, Undo2, Volume2 } from "lucide-react";
+import { ArrowLeft, BarChart3, CheckCheck, Clock, Home as HomeIcon, Pause, Pencil, Undo2, Volume2 } from "lucide-react";
 import { api, StudyState } from "../api";
 import { useApp } from "../App";
 import CardFrame from "../components/CardFrame";
@@ -135,6 +135,13 @@ export default function Study({ deckId }: { deckId: number }) {
     if (!speak(word)) toast("这张卡片没有音频", true);
   }, [card, rendered, toast]);
 
+  const markKnown = useCallback(async () => {
+    if (!card) return;
+    await api.setKnown([card.cardId], true);
+    toast("已标为熟词，不会再出现。可在单词本「熟词」中恢复");
+    load();
+  }, [card, load, toast]);
+
   const suspend = useCallback(async () => {
     if (!card) return;
     await api.setSuspended([card.cardId], true);
@@ -163,13 +170,15 @@ export default function Study({ deckId }: { deckId: number }) {
         undo();
       } else if (k === "r" || k === "R") {
         replay();
+      } else if (k === "k" || k === "K") {
+        markKnown();
       } else if (k === "e" || k === "E") {
         if (card) setEditing(true);
       } else if (k === "Escape") {
         app.go({ name: "home" });
       }
     },
-    [answer, reveal, revealed, undo, replay, editing, card, app],
+    [answer, reveal, revealed, undo, replay, editing, card, app, markKnown],
   );
 
   useEffect(() => {
@@ -232,6 +241,9 @@ export default function Study({ deckId }: { deckId: number }) {
             <div className="card-tools">
               <button className="icon-btn" title="重播发音 (R)" onClick={replay}>
                 <Volume2 size={16} />
+              </button>
+              <button className="icon-btn" title="太简单，标为熟词 (K)" onClick={markKnown}>
+                <CheckCheck size={16} />
               </button>
               <button className="icon-btn" title="编辑 (E)" onClick={() => setEditing(true)}>
                 <Pencil size={15} />

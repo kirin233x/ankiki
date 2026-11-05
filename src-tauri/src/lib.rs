@@ -185,6 +185,41 @@ fn set_suspended(state: State<AppState>, card_ids: Vec<i64>, suspended: bool) ->
 }
 
 #[tauri::command]
+fn set_known(state: State<AppState>, card_ids: Vec<i64>, known: bool) -> CmdResult<()> {
+    with_col!(state, col => col.set_known(&card_ids, known))
+}
+
+#[tauri::command]
+fn search_card_ids(state: State<AppState>, query: SearchQuery) -> CmdResult<Vec<i64>> {
+    with_col!(state, col => col.search_card_ids(&query))
+}
+
+#[tauri::command]
+fn delete_cards(state: State<AppState>, card_ids: Vec<i64>) -> CmdResult<()> {
+    with_col!(state, col => col.delete_notes_of_cards(&card_ids))
+}
+
+#[tauri::command]
+fn sift_batch(
+    state: State<AppState>,
+    deck_id: i64,
+    limit: i64,
+    exclude: Vec<i64>,
+) -> CmdResult<SiftBatch> {
+    with_col!(state, col => col.sift_batch(deck_id, limit, &exclude))
+}
+
+#[tauri::command]
+fn sift_answer(state: State<AppState>, card_id: i64, known: bool) -> CmdResult<()> {
+    with_col!(state, col => if known { col.sift_known(card_id) } else { col.sift_keep(card_id) })
+}
+
+#[tauri::command]
+fn sift_undo(state: State<AppState>, card_id: i64, position: i64) -> CmdResult<()> {
+    with_col!(state, col => col.sift_undo(card_id, position))
+}
+
+#[tauri::command]
 fn forget_cards(state: State<AppState>, card_ids: Vec<i64>) -> CmdResult<()> {
     with_col!(state, col => col.forget_cards(&card_ids))
 }
@@ -237,6 +272,12 @@ pub fn run() {
             delete_notes,
             set_suspended,
             forget_cards,
+            set_known,
+            search_card_ids,
+            delete_cards,
+            sift_batch,
+            sift_answer,
+            sift_undo,
             get_stats,
             data_dir,
         ])

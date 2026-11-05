@@ -29,6 +29,7 @@ export interface DeckInfo {
   learnedCards: number;
   matureCards: number;
   suspendedCards: number;
+  knownCards: number;
   studiedToday: number;
 }
 
@@ -55,6 +56,7 @@ export interface CardView {
   deckName: string;
   ord: number;
   state: number;
+  position: number;
   fields: string[];
   tags: string;
   notetype: Notetype;
@@ -133,6 +135,7 @@ export interface CardRow {
   reps: number;
   lapses: number;
   suspended: boolean;
+  known: boolean;
   tags: string;
 }
 
@@ -176,6 +179,7 @@ export interface Stats {
   youngCards: number;
   matureCards: number;
   suspendedCards: number;
+  knownCards: number;
   retention30d: number | null;
   avgDaily: number;
   daysStudied: number;
@@ -183,6 +187,13 @@ export interface Stats {
   forecast: number[];
   ratings30d: number[];
   intervals: number[];
+}
+
+export interface SiftBatch {
+  cards: CardView[];
+  remaining: number;
+  totalNew: number;
+  known: number;
 }
 
 export const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -239,6 +250,14 @@ export const api = {
   setSuspended: (cardIds: number[], suspended: boolean) =>
     call<void>("set_suspended", { cardIds, suspended }),
   forgetCards: (cardIds: number[]) => call<void>("forget_cards", { cardIds }),
+  setKnown: (cardIds: number[], known: boolean) => call<void>("set_known", { cardIds, known }),
+  searchCardIds: (query: SearchQuery) => call<number[]>("search_card_ids", { query }),
+  deleteCards: (cardIds: number[]) => call<void>("delete_cards", { cardIds }),
+
+  siftBatch: (deckId: number, limit: number, exclude: number[]) =>
+    call<SiftBatch>("sift_batch", { deckId, limit, exclude }),
+  siftAnswer: (cardId: number, known: boolean) => call<void>("sift_answer", { cardId, known }),
+  siftUndo: (cardId: number, position: number) => call<void>("sift_undo", { cardId, position }),
 
   getStats: (deckId: number | null) => call<Stats>("get_stats", { deckId }),
 };

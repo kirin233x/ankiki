@@ -9,6 +9,7 @@ import PromptDialog from "./components/PromptDialog";
 import SyncDialog from "./components/SyncDialog";
 import Home from "./pages/Home";
 import Study from "./pages/Study";
+import Sift from "./pages/Sift";
 import Browse from "./pages/Browse";
 import StatsPage from "./pages/Stats";
 import SettingsPage from "./pages/Settings";
@@ -17,6 +18,7 @@ import { deckColor } from "./utils";
 export type Route =
   | { name: "home" }
   | { name: "study"; deckId: number }
+  | { name: "sift"; deckId: number }
   | { name: "browse"; deckId?: number | null }
   | { name: "stats"; deckId?: number | null }
   | { name: "settings" };
@@ -161,7 +163,7 @@ function Shell() {
   );
 
   const totalDue = decks.reduce((s, d) => s + d.due.new + d.due.learning + d.due.review, 0);
-  const studying = route.name === "study";
+  const studying = route.name === "study" || route.name === "sift";
 
   const nav = [
     { key: "home", label: "首页", icon: <House size={18} />, route: { name: "home" } as Route, badge: totalDue },
@@ -229,6 +231,7 @@ function Shell() {
           <div className="main-drag" data-tauri-drag-region />
           {route.name === "home" && <Home />}
           {route.name === "study" && <Study key={route.deckId} deckId={route.deckId} />}
+          {route.name === "sift" && <Sift key={route.deckId} deckId={route.deckId} />}
           {route.name === "browse" && <Browse initialDeck={route.deckId ?? null} />}
           {route.name === "stats" && <StatsPage initialDeck={route.deckId ?? null} />}
           {route.name === "settings" && <SettingsPage />}

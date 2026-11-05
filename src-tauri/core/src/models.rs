@@ -56,6 +56,8 @@ pub struct DeckInfo {
     pub learned_cards: i64,
     pub mature_cards: i64,
     pub suspended_cards: i64,
+    /// 标为熟词、已从学习中忽略的卡片
+    pub known_cards: i64,
     pub studied_today: i64,
 }
 
@@ -90,6 +92,8 @@ pub struct CardView {
     pub deck_name: String,
     pub ord: i64,
     pub state: i64,
+    /// 新卡在队列中的位置
+    pub position: i64,
     pub fields: Vec<String>,
     pub tags: String,
     pub notetype: NotetypeView,
@@ -216,6 +220,8 @@ pub struct CardRow {
     pub reps: i64,
     pub lapses: i64,
     pub suspended: bool,
+    /// 熟词（已忽略）
+    pub known: bool,
     pub tags: String,
 }
 
@@ -269,6 +275,7 @@ pub struct Stats {
     pub young_cards: i64,
     pub mature_cards: i64,
     pub suspended_cards: i64,
+    pub known_cards: i64,
     pub retention_30d: Option<f64>,
     pub avg_daily: f64,
     pub days_studied: i64,
@@ -278,4 +285,17 @@ pub struct Stats {
     pub ratings_30d: Vec<i64>,
     /// 间隔分布：<1d, 1-3d, 3-7d, 1-2w, 2-4w, 1-3m, 3-6m, 6m+
     pub intervals: Vec<i64>,
+}
+
+/// 快速过词：一批待筛选的新卡
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SiftBatch {
+    pub cards: Vec<CardView>,
+    /// 还没有过的新词数量
+    pub remaining: i64,
+    /// 本词书新词总数（含已过、不含熟词）
+    pub total_new: i64,
+    /// 本词书熟词数量
+    pub known: i64,
 }

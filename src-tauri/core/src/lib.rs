@@ -5,6 +5,7 @@ pub mod fsrs;
 pub mod importer;
 pub mod models;
 pub mod scheduler;
+pub mod sift;
 pub mod stats;
 pub mod sync;
 pub mod util;
@@ -260,7 +261,7 @@ impl Collection {
         let order = if random { "RANDOM()" } else { "note_id, ord" };
         let ids: Vec<i64> = {
             let mut stmt = self.conn.prepare(&format!(
-                "SELECT id FROM cards WHERE deck_id = ? AND state = 0 ORDER BY {order}"
+                "SELECT id FROM cards WHERE deck_id = ? AND state = 0 AND position >= 0 ORDER BY {order}"
             ))?;
             let rows = stmt.query_map([deck_id], |r| r.get(0))?;
             rows.collect::<std::result::Result<_, _>>()?
@@ -331,15 +332,17 @@ impl Collection {
         for (id, name, description, created_at, config) in decks {
             let config = parse_config(&config);
             let due = self.deck_counts(id, &config)?;
-            let (total, new_cards, mature, suspended): (i64, i64, i64, i64) = self.conn.query_row(
-                "SELECT COUNT(*),
-                        COALESCE(SUM(state = 0), 0),
-                        COALESCE(SUM(state = 2 AND interval >= 21), 0),
-                        COALESCE(SUM(suspended), 0)
+            let (total, new_cards, mature, suspended, known): (i64, i64, i64, i64, i64) =
+                self.conn.query_row(
+                    "SELECT COUNT(*),
+                        COALESCE(SUM(state = 0 AND suspended != 2), 0),
+                        COALESCE(SUM(state = 2 AND interval >= 21 AND suspended != 2), 0),
+                        COALESCE(SUM(suspended = 1), 0),
+                        COALESCE(SUM(suspended = 2), 0)
                  FROM cards WHERE deck_id = ?",
-                [id],
-                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
-            )?;
+                    [id],
+                    |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
+                )?;
             let studied_today = self.studied_today(Some(id))?;
             out.push(DeckInfo {
                 id,
@@ -353,6 +356,7 @@ impl Collection {
                 learned_cards: total - new_cards,
                 mature_cards: mature,
                 suspended_cards: suspended,
+                known_cards: known,
                 studied_today,
             });
         }
@@ -403,18 +407,19 @@ impl Collection {
     }
 
     pub fn card_view(&self, card_id: i64) -> Result<CardView> {
-        let (note_id, deck_id, ord, state, fields, tags, ntid): (
+        let (note_id, deck_id, ord, state, fields, tags, ntid, position): (
             i64,
             i64,
             i64,
             i64,
             String,
             String,
+            i64,
             i64,
         ) = self
             .conn
             .query_row(
-                "SELECT c.note_id, c.deck_id, c.ord, c.state, n.fields, n.tags, n.notetype_id
+                "SELECT c.note_id, c.deck_id, c.ord, c.state, n.fields, n.tags, n.notetype_id, c.position
                  FROM cards c JOIN notes n ON n.id = c.note_id WHERE c.id = ?",
                 [card_id],
                 |r| {
@@ -426,6 +431,7 @@ impl Collection {
                         r.get(4)?,
                         r.get(5)?,
                         r.get(6)?,
+                        r.get(7)?,
                     ))
                 },
             )
@@ -438,6 +444,7 @@ impl Collection {
             deck_name: self.deck_name(deck_id)?,
             ord,
             state,
+            position,
             fields: serde_json::from_str(&fields).unwrap_or_default(),
             tags,
             notetype: self.notetype(ntid)?,
@@ -469,7 +476,7 @@ impl Collection {
         )?;
         let note_id = tx.last_insert_rowid();
         let pos: i64 = tx.query_row(
-            "SELECT COALESCE(MAX(position), -1) + 1 FROM cards WHERE deck_id = ?",
+            "SELECT MAX(COALESCE(MAX(position), -1), -1) + 1 FROM cards WHERE deck_id = ?",
             [deck_id],
             |r| r.get(0),
         )?;
@@ -528,6 +535,40 @@ impl Collection {
         Ok(())
     }
 
+    /// 标为熟词（或取消）：熟词不会出现在每日新词和复习中
+    pub fn set_known(&mut self, card_ids: &[i64], known: bool) -> Result<()> {
+        let tx = self.conn.unchecked_transaction()?;
+        {
+            let mut stmt = if known {
+                tx.prepare("UPDATE cards SET suspended = 2 WHERE id = ?")?
+            } else {
+                tx.prepare("UPDATE cards SET suspended = 0 WHERE id = ? AND suspended = 2")?
+            };
+            for id in card_ids {
+                stmt.execute([id])?;
+            }
+        }
+        tx.commit()?;
+        self.undo = None;
+        Ok(())
+    }
+
+    /// 删除这些卡片所属的笔记
+    pub fn delete_notes_of_cards(&mut self, card_ids: &[i64]) -> Result<()> {
+        let mut note_ids = Vec::new();
+        {
+            let mut stmt = self.conn.prepare("SELECT note_id FROM cards WHERE id = ?")?;
+            for id in card_ids {
+                if let Some(n) = stmt.query_row([id], |r| r.get::<_, i64>(0)).optional()? {
+                    note_ids.push(n);
+                }
+            }
+        }
+        note_ids.sort_unstable();
+        note_ids.dedup();
+        self.delete_notes(&note_ids)
+    }
+
     pub fn set_suspended(&mut self, card_ids: &[i64], suspended: bool) -> Result<()> {
         let tx = self.conn.unchecked_transaction()?;
         for id in card_ids {
@@ -550,7 +591,7 @@ impl Collection {
                 .optional()?;
             let Some(deck_id) = deck_id else { continue };
             let pos: i64 = tx.query_row(
-                "SELECT COALESCE(MAX(position), -1) + 1 FROM cards WHERE deck_id = ?",
+                "SELECT MAX(COALESCE(MAX(position), -1), -1) + 1 FROM cards WHERE deck_id = ?",
                 [deck_id],
                 |r| r.get(0),
             )?;

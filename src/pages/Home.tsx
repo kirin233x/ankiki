@@ -14,6 +14,7 @@ import {
   Plus,
   RefreshCw,
   Settings2,
+  Zap,
   Sparkles,
   Trash2,
   Upload,
@@ -166,6 +167,7 @@ function DeckCard({ deck }: { deck: DeckInfo }) {
   const due = deck.due.new + deck.due.learning + deck.due.review;
   const learnedPct = deck.totalCards ? (deck.learnedCards / deck.totalCards) * 100 : 0;
   const maturePct = deck.totalCards ? (deck.matureCards / deck.totalCards) * 100 : 0;
+  const knownPct = deck.totalCards ? (deck.knownCards / deck.totalCards) * 100 : 0;
 
   return (
     <div className="deck-card">
@@ -183,12 +185,18 @@ function DeckCard({ deck }: { deck: DeckInfo }) {
           </h3>
           <div className="deck-meta">
             {deck.description ||
-              `已学 ${Math.round(learnedPct)}% · 已掌握 ${deck.matureCards} · 每天 ${deck.config.newPerDay} 个新词`}
+              `已学 ${Math.round(learnedPct)}% · 已掌握 ${deck.matureCards}${
+                deck.knownCards ? ` · 熟词 ${deck.knownCards}` : ""
+              } · 每天 ${deck.config.newPerDay} 个新词`}
           </div>
         </div>
-        <div className="progress" title={`已掌握 ${deck.matureCards} / 已学 ${deck.learnedCards} / 共 ${deck.totalCards}`}>
+        <div
+          className="progress"
+          title={`已掌握 ${deck.matureCards} · 熟词 ${deck.knownCards} · 已学 ${deck.learnedCards} · 共 ${deck.totalCards}`}
+        >
+          <span style={{ width: `${knownPct}%`, background: "#a99cff" }} />
           <span style={{ width: `${maturePct}%`, background: "var(--review)" }} />
-          <span style={{ width: `${learnedPct - maturePct}%`, background: "#a7f3d0" }} />
+          <span style={{ width: `${Math.max(0, learnedPct - maturePct - knownPct)}%`, background: "#a7f3d0" }} />
         </div>
         <div className="counts">
           <div className={`count-pill new ${deck.due.new ? "" : "zero"}`}>
@@ -216,6 +224,15 @@ function DeckCard({ deck }: { deck: DeckInfo }) {
               今日已完成
             </div>
           )}
+          <button
+            className="btn"
+            onClick={() => app.go({ name: "sift", deckId: deck.id })}
+            title="快速过词：把认识的单词标为熟词，跳过不学"
+            disabled={deck.newCards === 0}
+          >
+            <Zap size={15} />
+            过词
+          </button>
           <button className="btn" onClick={() => app.editDeckOptions(deck)} title="学习设置">
             <Settings2 size={16} />
           </button>
@@ -226,6 +243,7 @@ function DeckCard({ deck }: { deck: DeckInfo }) {
           anchor={moreRef.current}
           onClose={() => setMenu(false)}
           items={[
+            { label: "快速过词（筛掉熟词）", icon: <Zap size={15} />, onClick: () => app.go({ name: "sift", deckId: deck.id }) },
             { label: "学习设置", icon: <Settings2 size={15} />, onClick: () => app.editDeckOptions(deck) },
             { label: "浏览单词", icon: <Library size={15} />, onClick: () => app.go({ name: "browse", deckId: deck.id }) },
             { label: "查看统计", icon: <BarChart3 size={15} />, onClick: () => app.go({ name: "stats", deckId: deck.id }) },
