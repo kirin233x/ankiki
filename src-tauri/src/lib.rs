@@ -232,6 +232,16 @@ fn get_stats(state: State<AppState>, deck_id: Option<i64>) -> CmdResult<Stats> {
 }
 
 #[tauri::command]
+fn word_board(state: State<AppState>, query: BoardQuery) -> CmdResult<BoardResult> {
+    with_col!(state, col => col.word_board(&query))
+}
+
+#[tauri::command]
+fn deck_fields(state: State<AppState>, deck_id: i64) -> CmdResult<Vec<String>> {
+    with_col!(state, col => col.deck_fields(deck_id))
+}
+
+#[tauri::command]
 fn data_dir(app: AppHandle) -> CmdResult<String> {
     app.path()
         .app_data_dir()
@@ -279,6 +289,8 @@ pub fn run() {
             sift_answer,
             sift_undo,
             get_stats,
+            word_board,
+            deck_fields,
             data_dir,
         ])
         .run(tauri::generate_context!())

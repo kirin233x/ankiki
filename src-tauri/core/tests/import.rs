@@ -77,11 +77,9 @@ fn import_modern_apkg_with_progress() {
         .unwrap();
     assert_eq!(r.total, 4);
     assert!(r.rows.iter().all(|c| c.interval == 12));
-    // 5 天后到期
-    let now = chrono::Utc::now().timestamp();
+    // 词书创建日（crt = 1793764800）之后第 5 天到期
     for row in &r.rows {
-        let days = (row.due - now) as f64 / 86400.0;
-        assert!(days > 3.0 && days < 6.0, "due in {days} days");
+        assert_eq!(row.due, 1_793_764_800 + 5 * 86400);
     }
 
     let st = col.study_state(res.deck_id).unwrap();

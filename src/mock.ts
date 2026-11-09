@@ -19,6 +19,7 @@ const cfg = (): DeckConfig => ({
   relearningSteps: [10],
   maxInterval: 36500,
   newOrder: 0,
+  meaningField: "",
 });
 
 const vocabNt: Notetype = {
@@ -312,6 +313,30 @@ export async function mockInvoke<T>(cmd: string, args: Record<string, any> = {})
               { ts: Date.now() - 86400000 * 20, rating: 3, state: 0, interval: -600, durationMs: 5600 },
             ]
           : [],
+      });
+    }
+    case "deck_fields":
+      return r(vocabNt.fields);
+    case "word_board": {
+      const q = args.query;
+      const pool = cards.filter((c) => (q.deckId ? c.deckId === q.deckId : true) && (c.state !== 0 || c.known));
+      const items = pool.map((c, i) => {
+        const worst = q.from ? [1, 3, 3, 4, 2, 3][i % 6] : 0;
+        const color = q.from
+          ? worst <= 2 ? "red" : worst === 3 ? "green" : "blue"
+          : c.known ? "gray" : c.lapses > 0 ? "red" : c.interval >= 21 ? "blue" : "green";
+        return {
+          cardId: c.id, noteId: c.id, deckId: c.deckId, word: c.fields[0],
+          meaning: (c.fields[2] || "释义").replace(/<[^>]+>/g, ""), color, isNew: !!q.from && i % 4 === 0,
+          known: !!c.known, reviews: q.from ? 1 + (i % 3) : c.reps, worstRating: worst, interval: c.interval,
+          firstTs: Date.now() - (pool.length - i) * 60000, lastTs: Date.now() - (pool.length - i) * 60000,
+        };
+      });
+      const count = (k: string) => items.filter((x) => x.color === k).length;
+      return r({
+        items, newCount: items.filter((x) => x.isNew).length, red: count("red"), green: count("green"),
+        blue: count("blue"), gray: count("gray"), reviews: items.reduce((s, x) => s + x.reviews, 0),
+        today: new Date().toISOString().slice(0, 10),
       });
     }
     case "find_anki_profiles":

@@ -56,8 +56,8 @@ export default function StatsPage({ initialDeck }: { initialDeck: number | null 
 
             <div className="panel panel-pad">
               <div className="panel-title">学习日历</div>
-              <div className="panel-sub">过去一年每天的复习次数</div>
-              <Heatmap data={s.heatmap} />
+              <div className="panel-sub">过去一年每天的复习次数 · 点击某一天可在词表看板中查看当天背的单词</div>
+              <Heatmap data={s.heatmap} onPick={(date) => app.go({ name: "board", date })} />
             </div>
 
             <div className="stats-grid">
@@ -121,7 +121,13 @@ function Kpi(props: { icon: React.ReactNode; color: string; num: number | string
 
 const HEAT = ["var(--panel-3)", "#d9d3ff", "#b3a8ff", "#8b7bff", "#6d5bff"];
 
-function Heatmap({ data }: { data: { date: string; count: number }[] }) {
+function Heatmap({
+  data,
+  onPick,
+}: {
+  data: { date: string; count: number }[];
+  onPick?: (date: string) => void;
+}) {
   const { weeks, months, max } = useMemo(() => {
     // 第一列从周日开始对齐
     const first = data.length ? new Date(data[0].date + "T00:00:00") : new Date();
@@ -158,8 +164,9 @@ function Heatmap({ data }: { data: { date: string; count: number }[] }) {
               {w.map((d, j) => (
                 <div
                   key={j}
-                  className="heatmap-cell"
-                  title={d ? `${d.date}：${d.count} 次` : ""}
+                  className={`heatmap-cell ${d && d.count > 0 && onPick ? "clickable" : ""}`}
+                  onClick={() => d && d.count > 0 && onPick?.(d.date)}
+                  title={d ? `${d.date}：${d.count} 次${d.count > 0 ? "（点击查看当天单词）" : ""}` : ""}
                   style={{ background: d ? HEAT[level(d.count)] : "transparent" }}
                 />
               ))}

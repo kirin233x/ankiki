@@ -1,5 +1,6 @@
 //! Ankiki 核心库：与 UI 无关，可独立测试。
 
+pub mod board;
 pub mod browse;
 pub mod fsrs;
 pub mod importer;

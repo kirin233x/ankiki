@@ -40,18 +40,17 @@ fn sync_from_anki_profile() {
     assert_eq!(r.missing_notes, 0);
     assert_eq!(review_count(&col), 5);
 
-    // 复习记录进入统计：今天学了 5 个新词
+    // 复习记录进入统计（复习发生在生成测试数据的那一天）
     let s = col.stats(Some(deck)).unwrap();
-    assert_eq!(s.today_reviews, 5);
-    assert_eq!(s.today_new, 5);
-    // 今日新词额度相应减少
-    let decks = col.list_decks().unwrap();
-    assert_eq!(decks[0].due.new, 3);
+    assert_eq!(s.total_reviews, 5);
+    assert_eq!(s.days_studied, 1);
+    let board = col.word_board(&BoardQuery { deck_id: Some(deck), from: None, to: None }).unwrap();
+    assert_eq!(board.items.len(), 5);
 
     // 再同步一次：不会重复写入复习记录
     let r2 = col.sync_from_anki(&fixture("toefl-profile.anki2"), &|_| {}).unwrap();
     assert_eq!(r2.revlog_added, 0);
-    assert_eq!(col.stats(Some(deck)).unwrap().today_reviews, 5);
+    assert_eq!(col.stats(Some(deck)).unwrap().total_reviews, 5);
 }
 
 #[test]

@@ -20,21 +20,7 @@ fn row_from(r: &rusqlite::Row) -> rusqlite::Result<(CardRow, i64, i64)> {
     let fields_json: String = r.get(5)?;
     let sort_idx: i64 = r.get(6)?;
     let fields: Vec<String> = serde_json::from_str(&fields_json).unwrap_or_default();
-    // 「释义」列：优先选含中文的字段，否则取第一个非空字段
-    let others: Vec<String> = fields
-        .iter()
-        .enumerate()
-        .filter(|(i, _)| *i as i64 != sort_idx)
-        .map(|(_, f)| strip_html(f))
-        .filter(|s| !s.is_empty())
-        .collect();
-    let has_cjk = |s: &str| s.chars().any(|c| ('\u{4e00}'..='\u{9fff}').contains(&c));
-    let back = others
-        .iter()
-        .find(|s| has_cjk(s))
-        .or_else(|| others.first())
-        .cloned()
-        .unwrap_or_default();
+    let back = extract_meaning(&fields, sort_idx, &[], "");
     let back: String = back.chars().take(160).collect();
     let state: i64 = r.get(7)?;
     let due: i64 = r.get(8)?;
@@ -61,6 +47,37 @@ fn row_from(r: &rusqlite::Row) -> rusqlite::Result<(CardRow, i64, i64)> {
         r.get(16)?,
         r.get(17)?,
     ))
+}
+
+/// 取一条笔记的「释义」：优先使用指定字段；否则选第一个含中文的字段，再否则取第一个非空字段
+pub(crate) fn extract_meaning(
+    fields: &[String],
+    sort_idx: i64,
+    field_names: &[String],
+    preferred: &str,
+) -> String {
+    if !preferred.is_empty() {
+        if let Some(i) = field_names.iter().position(|n| n == preferred) {
+            let v = fields.get(i).map(|f| strip_html(f)).unwrap_or_default();
+            if !v.is_empty() {
+                return v;
+            }
+        }
+    }
+    let others: Vec<String> = fields
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| *i as i64 != sort_idx)
+        .map(|(_, f)| strip_html(f))
+        .filter(|s| !s.is_empty())
+        .collect();
+    let has_cjk = |s: &str| s.chars().any(|c| ('\u{4e00}'..='\u{9fff}').contains(&c));
+    others
+        .iter()
+        .find(|s| has_cjk(s))
+        .or_else(|| others.first())
+        .cloned()
+        .unwrap_or_default()
 }
 
 fn escape_like(s: &str) -> String {

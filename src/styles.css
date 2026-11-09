@@ -2255,3 +2255,127 @@ table.cards td.cell-check {
 .browse.has-drawer .pager-btns > .pager-label:first-child {
   display: none;
 }
+
+/* ------------------------------------------------------------------ 词表看板 */
+
+.date-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.date-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 11px;
+  border: 1px solid var(--border-strong);
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+}
+.date-pick input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.board-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.word-tile {
+  --c: var(--good);
+  position: relative;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--c);
+  border-radius: 14px;
+  padding: 12px 14px 13px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--c) 9%, var(--panel)) 0%, var(--panel) 70%);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 78px;
+  transition: transform 0.12s, box-shadow 0.15s, border-color 0.15s;
+}
+.word-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+  border-color: color-mix(in srgb, var(--c) 45%, var(--border));
+  border-left-color: var(--c);
+}
+.word-tile.known {
+  opacity: 0.7;
+}
+.word-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.word-tile .word {
+  font-size: 16.5px;
+  font-weight: 700;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.word-tile .meaning {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  transition: filter 0.15s;
+}
+.hide-meaning .word-tile .meaning {
+  filter: blur(5px);
+  user-select: none;
+}
+.hide-meaning .word-tile:hover .meaning {
+  filter: none;
+}
+.new-tag {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 16px;
+  padding: 0 5px;
+  border-radius: 5px;
+  color: white;
+  background: var(--new);
+}
+.word-tile .reps {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+.board-legend {
+  text-align: center;
+  font-size: 12px;
+  color: var(--faint);
+  margin-top: 22px;
+}
+.heatmap-cell.clickable {
+  cursor: pointer;
+}
+.heatmap-cell.clickable:hover {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.nav-item:focus,
+.sidebar-deck:focus {
+  outline: none;
+}

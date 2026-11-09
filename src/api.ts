@@ -9,6 +9,7 @@ export interface DeckConfig {
   relearningSteps: number[];
   maxInterval: number;
   newOrder: number;
+  meaningField: string;
 }
 
 export interface Counts {
@@ -189,6 +190,41 @@ export interface Stats {
   intervals: number[];
 }
 
+export interface BoardQuery {
+  deckId?: number | null;
+  from?: string | null;
+  to?: string | null;
+}
+
+export type BoardColor = "red" | "green" | "blue" | "gray";
+
+export interface BoardItem {
+  cardId: number;
+  noteId: number;
+  deckId: number;
+  word: string;
+  meaning: string;
+  color: BoardColor;
+  isNew: boolean;
+  known: boolean;
+  reviews: number;
+  worstRating: number;
+  interval: number;
+  firstTs: number;
+  lastTs: number;
+}
+
+export interface BoardResult {
+  items: BoardItem[];
+  newCount: number;
+  red: number;
+  green: number;
+  blue: number;
+  gray: number;
+  reviews: number;
+  today: string;
+}
+
 export interface SiftBatch {
   cards: CardView[];
   remaining: number;
@@ -260,6 +296,8 @@ export const api = {
   siftUndo: (cardId: number, position: number) => call<void>("sift_undo", { cardId, position }),
 
   getStats: (deckId: number | null) => call<Stats>("get_stats", { deckId }),
+  wordBoard: (query: BoardQuery) => call<BoardResult>("word_board", { query }),
+  deckFields: (deckId: number) => call<string[]>("deck_fields", { deckId }),
 };
 
 /** 把本地媒体文件路径转换为 webview 可加载的 URL */

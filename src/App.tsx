@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { BarChart3, BookOpen, Download, House, Library, Plus, Settings as SettingsIcon } from "lucide-react";
+import { BarChart3, BookOpen, Download, House, Library, Plus, Settings as SettingsIcon, LayoutGrid } from "lucide-react";
 import { api, DeckInfo, onFileDrop, pickPackage, Settings } from "./api";
 import { ToastProvider, useToast } from "./components/ui";
 import ImportDialog from "./components/ImportDialog";
@@ -11,6 +11,7 @@ import Home from "./pages/Home";
 import Study from "./pages/Study";
 import Sift from "./pages/Sift";
 import Browse from "./pages/Browse";
+import Board from "./pages/Board";
 import StatsPage from "./pages/Stats";
 import SettingsPage from "./pages/Settings";
 import { deckColor } from "./utils";
@@ -21,6 +22,7 @@ export type Route =
   | { name: "sift"; deckId: number }
   | { name: "browse"; deckId?: number | null }
   | { name: "stats"; deckId?: number | null }
+  | { name: "board"; date?: string }
   | { name: "settings" };
 
 interface AppCtx {
@@ -168,6 +170,7 @@ function Shell() {
   const nav = [
     { key: "home", label: "首页", icon: <House size={18} />, route: { name: "home" } as Route, badge: totalDue },
     { key: "browse", label: "单词本", icon: <Library size={18} />, route: { name: "browse" } as Route },
+    { key: "board", label: "词表看板", icon: <LayoutGrid size={18} />, route: { name: "board" } as Route },
     { key: "stats", label: "学习统计", icon: <BarChart3 size={18} />, route: { name: "stats" } as Route },
     { key: "settings", label: "设置", icon: <SettingsIcon size={18} />, route: { name: "settings" } as Route },
   ];
@@ -234,6 +237,7 @@ function Shell() {
           {route.name === "sift" && <Sift key={route.deckId} deckId={route.deckId} />}
           {route.name === "browse" && <Browse initialDeck={route.deckId ?? null} />}
           {route.name === "stats" && <StatsPage initialDeck={route.deckId ?? null} />}
+          {route.name === "board" && <Board key={route.date ?? ""} initialDate={route.date} />}
           {route.name === "settings" && <SettingsPage />}
         </main>
       </div>

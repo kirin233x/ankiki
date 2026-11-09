@@ -6,7 +6,7 @@ pub const STATE_REVIEW: i64 = 2;
 pub const STATE_RELEARNING: i64 = 3;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(default, rename_all = "camelCase")]
 pub struct DeckConfig {
     pub new_per_day: i64,
     pub reviews_per_day: i64,
@@ -18,6 +18,8 @@ pub struct DeckConfig {
     pub max_interval: i64,
     /// 新卡顺序：0 按词书顺序，1 随机
     pub new_order: i64,
+    /// 词表看板中作为「中文释义」显示的字段名，空表示自动识别
+    pub meaning_field: String,
 }
 
 impl Default for DeckConfig {
@@ -30,6 +32,7 @@ impl Default for DeckConfig {
             relearning_steps: vec![10.0],
             max_interval: 36500,
             new_order: 0,
+            meaning_field: String::new(),
         }
     }
 }
@@ -298,4 +301,50 @@ pub struct SiftBatch {
     pub total_new: i64,
     /// 本词书熟词数量
     pub known: i64,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct BoardQuery {
+    pub deck_id: Option<i64>,
+    /// 起始学习日（YYYY-MM-DD，含）；为空表示「全部已学」
+    pub from: Option<String>,
+    /// 结束学习日（YYYY-MM-DD，含）；为空则与 from 相同
+    pub to: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BoardItem {
+    pub card_id: i64,
+    pub note_id: i64,
+    pub deck_id: i64,
+    pub word: String,
+    pub meaning: String,
+    /// red | green | blue | gray
+    pub color: String,
+    /// 在所选时间内是第一次学
+    pub is_new: bool,
+    pub known: bool,
+    /// 所选时间内作答次数
+    pub reviews: i64,
+    /// 所选时间内最差的一次评分（1~4），「全部已学」时为 0
+    pub worst_rating: i64,
+    pub interval: i64,
+    pub first_ts: i64,
+    pub last_ts: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct BoardResult {
+    pub items: Vec<BoardItem>,
+    pub new_count: i64,
+    pub red: i64,
+    pub green: i64,
+    pub blue: i64,
+    pub gray: i64,
+    pub reviews: i64,
+    /// 今天对应的学习日（YYYY-MM-DD）
+    pub today: String,
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { api, DeckConfig, DeckInfo } from "../api";
 import { Modal, Range, useToast } from "./ui";
@@ -32,6 +32,10 @@ export default function DeckOptionsDialog(props: { deck: DeckInfo; onClose: () =
   const [learn, setLearn] = useState(stepsText(props.deck.config.learningSteps));
   const [relearn, setRelearn] = useState(stepsText(props.deck.config.relearningSteps));
   const [desc, setDesc] = useState(props.deck.description);
+  const [fieldNames, setFieldNames] = useState<string[]>([]);
+  useEffect(() => {
+    api.deckFields(props.deck.id).then(setFieldNames).catch(() => {});
+  }, [props.deck.id]);
   const set = <K extends keyof DeckConfig>(k: K, v: DeckConfig[K]) => setCfg((c) => ({ ...c, [k]: v }));
 
   const save = async () => {
@@ -129,6 +133,22 @@ export default function DeckOptionsDialog(props: { deck: DeckInfo; onClose: () =
             onChange={(e) => set("maxInterval", Number(e.target.value) || 36500)}
           />
         </div>
+      </div>
+      <div className="field">
+        <div className="field-label">词表看板中的释义字段</div>
+        <select
+          className="select"
+          value={cfg.meaningField ?? ""}
+          onChange={(e) => set("meaningField", e.target.value)}
+        >
+          <option value="">自动识别（第一个含中文的字段）</option>
+          {fieldNames.map((f) => (
+            <option key={f} value={f}>
+              {f}
+            </option>
+          ))}
+        </select>
+        <div className="field-help">如果词表看板里显示的不是中文释义，可以在这里指定正确的字段。</div>
       </div>
       <div className="field" style={{ marginBottom: 6 }}>
         <div className="field-label">词书简介</div>
