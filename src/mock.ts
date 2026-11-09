@@ -20,6 +20,7 @@ const cfg = (): DeckConfig => ({
   maxInterval: 36500,
   newOrder: 0,
   meaningField: "",
+  wordField: "",
 });
 
 const vocabNt: Notetype = {

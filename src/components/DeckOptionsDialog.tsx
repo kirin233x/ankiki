@@ -134,21 +134,36 @@ export default function DeckOptionsDialog(props: { deck: DeckInfo; onClose: () =
           />
         </div>
       </div>
-      <div className="field">
-        <div className="field-label">词表看板中的释义字段</div>
-        <select
-          className="select"
-          value={cfg.meaningField ?? ""}
-          onChange={(e) => set("meaningField", e.target.value)}
-        >
-          <option value="">自动识别（第一个含中文的字段）</option>
-          {fieldNames.map((f) => (
-            <option key={f} value={f}>
-              {f}
-            </option>
-          ))}
-        </select>
-        <div className="field-help">如果词表看板里显示的不是中文释义，可以在这里指定正确的字段。</div>
+      <div className="row">
+        <div className="field">
+          <div className="field-label">单词字段</div>
+          <select className="select" value={cfg.wordField ?? ""} onChange={(e) => set("wordField", e.target.value)}>
+            <option value="">自动识别</option>
+            {fieldNames.map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <div className="field-label">释义字段</div>
+          <select
+            className="select"
+            value={cfg.meaningField ?? ""}
+            onChange={(e) => set("meaningField", e.target.value)}
+          >
+            <option value="">自动识别（含中文的字段）</option>
+            {fieldNames.map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div className="field-help" style={{ marginTop: -10, marginBottom: 18 }}>
+        单词本和词表看板显示的「单词」和「释义」来自这两个字段。如果显示成了序号、音标等，在这里指定正确的字段。
       </div>
       <div className="field" style={{ marginBottom: 6 }}>
         <div className="field-label">词书简介</div>

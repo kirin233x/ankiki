@@ -10,6 +10,7 @@ export interface DeckConfig {
   maxInterval: number;
   newOrder: number;
   meaningField: string;
+  wordField: string;
 }
 
 export interface Counts {

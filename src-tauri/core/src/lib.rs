@@ -123,6 +123,7 @@ impl Collection {
             settings: Settings::default(),
         };
         col.ensure_basic_notetype()?;
+        col.migrate_word_fields()?;
         col.settings = col.load_settings()?;
         Ok(col)
     }
@@ -253,6 +254,63 @@ impl Collection {
         )?;
         if old.new_order != c.new_order {
             self.reorder_new_cards(deck_id, c.new_order == 1)?;
+        }
+        if old.word_field != c.word_field {
+            self.recompute_words(Some(deck_id), None)?;
+        }
+        Ok(())
+    }
+
+    /// 重新识别笔记的「单词」并写入 sort_field（单词本、词表看板、排序都用它）。
+    /// 返回更新的笔记数
+    pub fn recompute_words(&self, deck_id: Option<i64>, note_id: Option<i64>) -> Result<usize> {
+        let rows: Vec<(i64, String, String, i64, String, String)> = {
+            let mut stmt = self.conn.prepare(
+                "SELECT n.id, n.fields, n.sort_field, nt.sort_idx, nt.fields, d.config
+                 FROM notes n JOIN notetypes nt ON nt.id = n.notetype_id JOIN decks d ON d.id = n.deck_id
+                 WHERE (?1 IS NULL OR n.deck_id = ?1) AND (?2 IS NULL OR n.id = ?2)",
+            )?;
+            let rows = stmt.query_map(params![deck_id, note_id], |r| {
+                Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?))
+            })?;
+            rows.collect::<std::result::Result<_, _>>()?
+        };
+        let mut configs: std::collections::HashMap<String, String> = Default::default();
+        let tx = self.conn.unchecked_transaction()?;
+        let mut changed = 0;
+        {
+            let mut up = tx.prepare("UPDATE notes SET sort_field = ? WHERE id = ?")?;
+            for (id, fields, old, sort_idx, names, config) in rows {
+                let fields: Vec<String> = serde_json::from_str(&fields).unwrap_or_default();
+                let names: Vec<String> = serde_json::from_str(&names).unwrap_or_default();
+                let preferred = configs
+                    .entry(config.clone())
+                    .or_insert_with(|| parse_config(&config).word_field)
+                    .clone();
+                let (_, word) = browse::extract_word(&fields, sort_idx, &names, &preferred);
+                if word != old {
+                    up.execute(params![word, id])?;
+                    changed += 1;
+                }
+            }
+        }
+        tx.commit()?;
+        Ok(changed)
+    }
+
+    /// 一次性迁移：旧版本把「排序字段」当作单词，遇到序号字段会显示成数字
+    fn migrate_word_fields(&self) -> Result<()> {
+        let done: bool = self
+            .conn
+            .query_row("SELECT 1 FROM meta WHERE key = 'word_fields_v1'", [], |_| Ok(true))
+            .optional()?
+            .unwrap_or(false);
+        if !done {
+            self.recompute_words(None, None)?;
+            self.conn.execute(
+                "INSERT OR REPLACE INTO meta (key, value) VALUES ('word_fields_v1', '1')",
+                [],
+            )?;
         }
         Ok(())
     }
@@ -491,33 +549,23 @@ impl Collection {
     }
 
     pub fn update_note(&self, note_id: i64, fields: Vec<String>, tags: &str) -> Result<()> {
-        let ntid: i64 = self
+        let _exists: i64 = self
             .conn
             .query_row("SELECT notetype_id FROM notes WHERE id = ?", [note_id], |r| {
                 r.get(0)
             })
             .optional()?
             .ok_or_else(|| anyhow!("笔记不存在"))?;
-        let sort_idx: i64 = self.conn.query_row(
-            "SELECT sort_idx FROM notetypes WHERE id = ?",
-            [ntid],
-            |r| r.get(0),
-        )?;
-        let sort_field = fields
-            .get(sort_idx as usize)
-            .or_else(|| fields.first())
-            .map(|f| util::strip_html(f))
-            .unwrap_or_default();
         self.conn.execute(
-            "UPDATE notes SET fields = ?, tags = ?, sort_field = ?, modified_at = ? WHERE id = ?",
+            "UPDATE notes SET fields = ?, tags = ?, modified_at = ? WHERE id = ?",
             params![
                 serde_json::to_string(&fields)?,
                 tags.trim(),
-                sort_field,
                 util::now_secs(),
                 note_id
             ],
         )?;
+        self.recompute_words(None, Some(note_id))?;
         Ok(())
     }
 

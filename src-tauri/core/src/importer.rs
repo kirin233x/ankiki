@@ -196,6 +196,7 @@ impl Collection {
                (SELECT DISTINCT notetype_id FROM notes WHERE deck_id = ?) AND id != ?",
             params![media_dir_name, result.deck_id, crate::BASIC_NOTETYPE_ID],
         )?;
+        self.recompute_words(Some(result.deck_id), None)?;
         report("导入完成", total, total);
         Ok(result)
     }

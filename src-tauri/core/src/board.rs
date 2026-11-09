@@ -3,7 +3,7 @@
 //! 某一天/某段时间：按这段时间内最差的一次评分标色 —— 重来/困难 红，良好 绿，简单 蓝。
 //! 全部已学：按当前记忆状态标色 —— 难词/易忘 红，已掌握（间隔 ≥ 21 天）蓝，其他 绿，熟词 灰。
 
-use crate::browse::extract_meaning;
+use crate::browse::{extract_meaning, extract_word};
 use crate::models::*;
 use crate::util::{self, date_start, study_date};
 use crate::{parse_config, Collection};
@@ -48,7 +48,7 @@ impl Collection {
             _ => None,
         };
 
-        let mut configs: HashMap<i64, String> = HashMap::new();
+        let mut configs: HashMap<i64, DeckConfig> = HashMap::new();
         let mut items: Vec<BoardItem> = Vec::new();
         let mut push = |r: &rusqlite::Row, card_id: i64, worst: i64, reviews: i64, was_new: bool, first_ts: i64, last_ts: i64| -> rusqlite::Result<()> {
             let note_id: i64 = r.get(6)?;
@@ -62,11 +62,12 @@ impl Collection {
             let word: String = r.get(14)?;
             let sort_idx: i64 = r.get(15)?;
             let names: Vec<String> = serde_json::from_str(&r.get::<_, String>(16)?).unwrap_or_default();
-            let preferred = configs
+            let cfg = configs
                 .entry(deck_id)
-                .or_insert_with(|| parse_config(&r.get::<_, String>(17).unwrap_or_default()).meaning_field)
+                .or_insert_with(|| parse_config(&r.get::<_, String>(17).unwrap_or_default()))
                 .clone();
-            let meaning: String = extract_meaning(&fields, sort_idx, &names, &preferred)
+            let (word_idx, _) = extract_word(&fields, sort_idx, &names, &cfg.word_field);
+            let meaning: String = extract_meaning(&fields, word_idx as i64, &names, &cfg.meaning_field)
                 .chars()
                 .take(200)
                 .collect();

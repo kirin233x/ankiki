@@ -10,7 +10,7 @@ use rusqlite::OptionalExtension;
 
 const ROW_SELECT: &str = "SELECT c.id, c.note_id, c.deck_id, d.name, n.sort_field, n.fields, nt.sort_idx,
         c.state, c.due, c.interval, c.stability, c.difficulty, c.reps, c.lapses, c.suspended, n.tags,
-        c.last_review, c.created_at, c.position
+        c.last_review, c.created_at, c.position, nt.fields, d.config
     FROM cards c
     JOIN notes n ON n.id = c.note_id
     JOIN decks d ON d.id = c.deck_id
@@ -20,7 +20,10 @@ fn row_from(r: &rusqlite::Row) -> rusqlite::Result<(CardRow, i64, i64)> {
     let fields_json: String = r.get(5)?;
     let sort_idx: i64 = r.get(6)?;
     let fields: Vec<String> = serde_json::from_str(&fields_json).unwrap_or_default();
-    let back = extract_meaning(&fields, sort_idx, &[], "");
+    let names: Vec<String> = serde_json::from_str(&r.get::<_, String>(19)?).unwrap_or_default();
+    let cfg = crate::parse_config(&r.get::<_, String>(20)?);
+    let (word_idx, _) = extract_word(&fields, sort_idx, &names, &cfg.word_field);
+    let back = extract_meaning(&fields, word_idx as i64, &names, &cfg.meaning_field);
     let back: String = back.chars().take(160).collect();
     let state: i64 = r.get(7)?;
     let due: i64 = r.get(8)?;
@@ -47,6 +50,63 @@ fn row_from(r: &rusqlite::Row) -> rusqlite::Result<(CardRow, i64, i64)> {
         r.get(16)?,
         r.get(17)?,
     ))
+}
+
+/// 常见的「单词」字段名
+const WORD_FIELD_NAMES: &[&str] = &[
+    "word", "words", "单词", "词汇", "单字", "英文", "英语", "english", "front", "正面", "expression",
+    "vocab", "vocabulary", "term", "headword", "lemma", "词条", "生词",
+];
+
+/// 看起来像一个单词：非空、含字母或汉字等文字、不是音标、不太长
+fn word_like(s: &str) -> bool {
+    let t = s.trim();
+    !t.is_empty()
+        && t.chars().any(|c| c.is_alphabetic())
+        && !t.starts_with('/')
+        && !t.starts_with('[')
+        && t.chars().count() <= 60
+}
+
+/// 取一条笔记的「单词」：返回 (字段序号, 纯文本)。
+/// 优先使用指定字段；再按字段名识别（Word/单词/Front…）；再用排序字段（如果不是序号）；
+/// 再取第一个像单词的字段。
+pub(crate) fn extract_word(
+    fields: &[String],
+    sort_idx: i64,
+    field_names: &[String],
+    preferred: &str,
+) -> (usize, String) {
+    let text = |i: usize| fields.get(i).map(|f| strip_html(f)).unwrap_or_default();
+    if !preferred.is_empty() {
+        if let Some(i) = field_names.iter().position(|n| n == preferred) {
+            let v = text(i);
+            if !v.is_empty() {
+                return (i, v);
+            }
+        }
+    }
+    for (i, name) in field_names.iter().enumerate() {
+        let n = name.trim().to_lowercase();
+        if WORD_FIELD_NAMES.contains(&n.as_str()) {
+            let v = text(i);
+            if word_like(&v) {
+                return (i, v);
+            }
+        }
+    }
+    let si = sort_idx.max(0) as usize;
+    let sv = text(si);
+    if word_like(&sv) {
+        return (si, sv);
+    }
+    for i in 0..fields.len() {
+        let v = text(i);
+        if word_like(&v) {
+            return (i, v);
+        }
+    }
+    (si, sv)
 }
 
 /// 取一条笔记的「释义」：优先使用指定字段；否则选第一个含中文的字段，再否则取第一个非空字段
@@ -206,7 +266,29 @@ impl Collection {
 
 #[cfg(test)]
 mod tests {
+    use super::{extract_meaning, extract_word};
     use crate::models::SearchQuery;
+
+    fn v(xs: &[&str]) -> Vec<String> {
+        xs.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn word_detection() {
+        // 排序字段是序号：跳过
+        let f = v(&["12", "abandon", "/əˈbændən/", "v. 放弃"]);
+        let n = v(&["序号", "Spelling", "音标", "释义"]);
+        assert_eq!(extract_word(&f, 0, &n, ""), (1, "abandon".into()));
+        assert_eq!(extract_meaning(&f, 1, &n, ""), "v. 放弃");
+        // 字段名识别
+        let n2 = v(&["编号", "音标", "Word", "释义"]);
+        let f2 = v(&["7", "/x/", "<b>apple</b>", "苹果"]);
+        assert_eq!(extract_word(&f2, 0, &n2, "").1, "apple");
+        // 手动指定
+        assert_eq!(extract_word(&f, 0, &n, "释义").1, "v. 放弃");
+        // 普通情况保持排序字段
+        assert_eq!(extract_word(&v(&["dog", "狗"]), 0, &v(&["Front", "Back"]), "").0, 0);
+    }
     use crate::test_collection;
 
     #[test]

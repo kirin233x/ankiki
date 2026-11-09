@@ -20,6 +20,8 @@ pub struct DeckConfig {
     pub new_order: i64,
     /// 词表看板中作为「中文释义」显示的字段名，空表示自动识别
     pub meaning_field: String,
+    /// 作为「单词」显示的字段名（单词本、词表看板、排序），空表示自动识别
+    pub word_field: String,
 }
 
 impl Default for DeckConfig {
@@ -33,6 +35,7 @@ impl Default for DeckConfig {
             max_interval: 36500,
             new_order: 0,
             meaning_field: String::new(),
+            word_field: String::new(),
         }
     }
 }

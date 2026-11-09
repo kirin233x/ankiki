@@ -117,3 +117,46 @@ fn reject_non_package() {
         .import_package(&bad, &ImportOptions::default(), &|_| {})
         .is_err());
 }
+
+#[test]
+fn deck_with_index_field_uses_real_word() {
+    // 排序字段是「序号」(1, 2, 3)，单词在「拼写」字段
+    let (mut col, _d) = open();
+    let res = col
+        .import_package(&fixture("indexed.apkg"), &ImportOptions::default(), &|_| {})
+        .unwrap();
+    let r = col.search_cards(&SearchQuery { deck_id: Some(res.deck_id), sort: "sort".into(), ..Default::default() }).unwrap();
+    let fronts: Vec<&str> = r.rows.iter().map(|x| x.front.as_str()).collect();
+    assert_eq!(fronts, vec!["abandon", "ability", "absorb"]);
+    assert_eq!(r.rows[0].back, "v. 放弃");
+
+    // 词表看板（全部已学需要先学一下）
+    let st = col.study_state(res.deck_id).unwrap();
+    col.answer_card(st.card.unwrap().card_id, 3, 1000).unwrap();
+    let b = col.word_board(&BoardQuery::default()).unwrap();
+    assert_eq!(b.items[0].word, "abandon");
+    assert_eq!(b.items[0].meaning, "v. 放弃");
+
+    // 手动指定单词字段
+    let mut cfg = col.deck_config(res.deck_id).unwrap();
+    cfg.word_field = "音标".into();
+    col.update_deck_config(res.deck_id, cfg).unwrap();
+    let r = col.search_cards(&SearchQuery { deck_id: Some(res.deck_id), sort: "sort".into(), ..Default::default() }).unwrap();
+    assert_eq!(r.rows[0].front, "/əbˈzɔːb/");
+}
+
+#[test]
+fn old_database_is_migrated_on_open() {
+    let dir = tempfile::tempdir().unwrap();
+    {
+        let mut col = Collection::open(dir.path()).unwrap();
+        col.import_package(&fixture("indexed.apkg"), &ImportOptions::default(), &|_| {})
+            .unwrap();
+        // 模拟旧版本：sort_field 存的是序号
+        col.conn.execute("UPDATE notes SET sort_field = '1'", []).unwrap();
+        col.conn.execute("DELETE FROM meta WHERE key = 'word_fields_v1'", []).unwrap();
+    }
+    let col = Collection::open(dir.path()).unwrap();
+    let r = col.search_cards(&SearchQuery { sort: "sort".into(), ..Default::default() }).unwrap();
+    assert_eq!(r.rows[0].front, "abandon");
+}
