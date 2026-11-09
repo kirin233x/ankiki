@@ -101,7 +101,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="settings-group">
+        <div className="settings-group desktop-only">
           <h3>Anki</h3>
           <div className="panel">
             <div className="setting-row">
@@ -120,7 +120,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="settings-group">
+        <div className="settings-group desktop-only">
           <h3>快捷键</h3>
           <div className="panel" style={{ padding: "8px 0" }}>
             {[

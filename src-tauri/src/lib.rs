@@ -90,6 +90,30 @@ fn undo(state: State<AppState>) -> CmdResult<Option<StudyState>> {
 
 // ------------------------------------------------------------------ 导入
 
+/// 把文件选择器返回的路径转成本地路径。
+/// iOS 上返回的是 `file:///private/var/.../xxx.apkg` 形式（含百分号编码）
+fn local_path(path: &str) -> PathBuf {
+    let Some(rest) = path.strip_prefix("file://") else {
+        return PathBuf::from(path);
+    };
+    let rest = rest.strip_prefix("localhost").unwrap_or(rest);
+    let bytes = rest.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let Ok(b) = u8::from_str_radix(&rest[i + 1..i + 3], 16) {
+                out.push(b);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    PathBuf::from(String::from_utf8_lossy(&out).into_owned())
+}
+
 #[tauri::command]
 async fn import_package(
     app: AppHandle,
@@ -105,7 +129,7 @@ async fn import_package(
             .map_err(|_| "数据库被占用，请重试".to_string())?;
         let emitter = handle.clone();
         col.import_package(
-            &PathBuf::from(path),
+            &local_path(&path),
             &options.unwrap_or_default(),
             &move |p| {
                 let _ = emitter.emit("import-progress", p);
@@ -295,4 +319,19 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("启动 Ankiki 失败");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::local_path;
+    use std::path::PathBuf;
+
+    #[test]
+    fn file_urls() {
+        assert_eq!(local_path("/a/b.apkg"), PathBuf::from("/a/b.apkg"));
+        assert_eq!(
+            local_path("file:///private/var/tmp/%E5%9B%9B%E7%BA%A7%20words.apkg"),
+            PathBuf::from("/private/var/tmp/四级 words.apkg")
+        );
+    }
 }

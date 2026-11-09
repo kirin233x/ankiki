@@ -325,10 +325,12 @@ export function mediaUrl(dir: string, file: string): string {
 export async function pickPackage(): Promise<string | null> {
   if (!isTauri) return "/mock/四级核心词汇.apkg";
   const { open } = await import("@tauri-apps/plugin-dialog");
+  const { isMobile } = await import("./platform");
+  // iOS 不认识 .apkg 这种文件类型，加过滤器会导致文件变灰选不了，所以手机上不加过滤
   const res = await open({
     multiple: false,
     directory: false,
-    filters: [{ name: "Anki 词书", extensions: ["apkg", "colpkg"] }],
+    ...(isMobile ? {} : { filters: [{ name: "Anki 词书", extensions: ["apkg", "colpkg"] }] }),
   });
   return typeof res === "string" ? res : null;
 }

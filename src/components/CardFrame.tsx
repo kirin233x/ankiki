@@ -13,6 +13,8 @@ interface Props {
   onKey?: (e: KeyboardEvent) => void;
   /** 在输入答案框里按回车 */
   onEnter?: () => void;
+  /** 点击卡片空白处（手机上用来翻面） */
+  onTap?: () => void;
   onTyped?: (value: string) => void;
   autoFocusInput?: boolean;
   compact?: boolean;
@@ -23,6 +25,8 @@ html, body { margin: 0; min-height: 100%; }
 html { -webkit-text-size-adjust: 100%; }
 body { padding: 44px 40px 56px; box-sizing: border-box; overflow-wrap: break-word; -webkit-font-smoothing: antialiased; }
 body.compact { padding: 24px 22px; }
+@media (max-width: 600px) { body { padding: 30px 20px 40px; } body.compact { padding: 18px 16px; } }
+* { -webkit-tap-highlight-color: transparent; }
 img { max-width: 100%; height: auto; border-radius: 8px; }
 .replay-button { display: inline-block; width: 38px; height: 38px; vertical-align: middle; margin: 4px 6px; cursor: pointer; transition: transform .15s ease; }
 .replay-button:hover { transform: scale(1.08); }
@@ -85,8 +89,12 @@ export default function CardFrame(props: Props) {
       const doc = frame.contentDocument;
       if (!doc) return;
       doc.addEventListener("click", (e) => {
-        const target = (e.target as HTMLElement | null)?.closest?.("[data-sound],[data-tts]") as HTMLElement | null;
-        if (!target) return;
+        const el = e.target as HTMLElement | null;
+        const target = el?.closest?.("[data-sound],[data-tts]") as HTMLElement | null;
+        if (!target) {
+          if (!el?.closest?.("a,button,input,textarea,select,summary,details,audio,video")) cb.current.onTap?.();
+          return;
+        }
         e.preventDefault();
         if (target.dataset.sound) playSounds(cb.current.mediaDir, [target.dataset.sound]);
         else if (target.dataset.tts) speak(target.dataset.tts, target.dataset.lang);

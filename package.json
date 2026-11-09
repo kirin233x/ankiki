@@ -9,7 +9,11 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "app:dev": "tauri dev",
-    "app:build": "tauri build"
+    "app:build": "tauri build",
+    "ios:init": "tauri ios init",
+    "ios:dev": "tauri ios dev",
+    "ios:build": "tauri ios build",
+    "ios:xcode": "npm run build && open src-tauri/gen/apple/*.xcodeproj"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.8.0",

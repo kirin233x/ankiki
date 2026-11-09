@@ -7,6 +7,7 @@ import NoteEditor from "../components/NoteEditor";
 import { Modal, useToast } from "../components/ui";
 import { renderSide, stripHtml } from "../render";
 import { playSounds, speak, stopAudio } from "../audio";
+import { haptic, isMobile } from "../platform";
 import { STATE_COLOR, STATE_LABEL } from "../utils";
 
 const RATINGS = [
@@ -86,6 +87,7 @@ export default function Study({ deckId }: { deckId: number }) {
     async (rating: number) => {
       if (!card || !revealed || busy.current) return;
       busy.current = true;
+      haptic();
       setPressed(rating);
       try {
         const next = await api.answerCard(card.cardId, rating, Date.now() - shownAt.current);
@@ -266,6 +268,7 @@ export default function Study({ deckId }: { deckId: number }) {
               styleMode={app.settings.cardStyle}
               onKey={onKey}
               onEnter={reveal}
+              onTap={reveal}
               onTyped={setTyped}
               autoFocusInput={!revealed}
             />
@@ -274,7 +277,7 @@ export default function Study({ deckId }: { deckId: number }) {
             {!revealed ? (
               <button className="btn btn-primary show-answer" onClick={reveal}>
                 显示答案
-                <kbd style={{ background: "rgba(255,255,255,.22)" }}>空格</kbd>
+                {!isMobile && <kbd style={{ background: "rgba(255,255,255,.22)" }}>空格</kbd>}
               </button>
             ) : (
               RATINGS.map((b) => (

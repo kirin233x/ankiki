@@ -61,6 +61,58 @@ npm run tauri dev
 
 > 不想自己编译的话，可以在 GitHub 仓库的 **Actions → 打包 macOS 应用** 中手动运行，然后下载生成的 DMG。从网上下载的未签名应用第一次打开时，macOS 可能提示「已损坏」，在终端执行 `xattr -cr /Applications/Ankiki.app` 即可。
 
+## iPhone 版（实验性）
+
+手机版和 Mac 版共用同一套代码，界面会自动切换成手机布局：底部是悬浮的玻璃标签栏，学习时轻点卡片翻面。手机和 Mac 的数据各自独立，暂时不同步。
+
+### 第一次准备（只需一次）
+
+1. 从 App Store 安装 **Xcode**，打开一次并同意许可协议。
+2. 安装工具：
+
+```bash
+brew install cocoapods
+```
+
+```bash
+rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
+```
+
+3. 在项目目录下生成 iOS 工程：
+
+```bash
+npm install
+```
+
+```bash
+npm run ios:init
+```
+
+4. 用数据线把 iPhone 连到 Mac。在 iPhone 上打开「设置 → 隐私与安全性 → 开发者模式」（如果看不到这一项，先在 Xcode 里连一次手机）。
+
+### 安装到手机
+
+```bash
+npm run ios:xcode
+```
+
+这条命令会先构建界面，再打开 Xcode 工程，然后在 Xcode 里操作：
+
+1. 左侧点项目 → 选中 `ankiki_iOS` → **Signing & Capabilities** → Team 选你的 Apple ID（Personal Team 也可以）。如果提示 Bundle Identifier 冲突，改成别的，比如 `com.你的名字.ankiki`。
+2. 菜单 **Product → Scheme → Edit Scheme… → Run → Build Configuration** 改成 **Release**。这样界面会打包进 App，不依赖 Mac 运行。
+3. 顶部选择你的 iPhone，点 ▶（⌘R）。
+4. 第一次打开时，如果提示「未受信任的开发者」，在 iPhone 上打开「设置 → 通用 → VPN 与设备管理」，信任你的开发者证书。
+
+> 用免费 Apple ID 签名的 App **7 天后会过期**。过期后重复「安装到手机」的步骤即可，词书和学习进度不会丢。
+
+开发调试时也可以用 `npm run ios:dev`。这种方式下，App 从 Mac 上的开发服务器加载界面，手机和 Mac 需要连在同一个 Wi-Fi。
+
+### 在手机上导入词书
+
+先把 .apkg 放进 iPhone 的「文件」App（例如从 Mac 用隔空投送发到手机后选择「存储到文件」，或者放进 iCloud 云盘），然后在 App 里点右下角的 **+** → 「导入 Anki 词书」，选中文件即可。
+
+在电脑浏览器里预览手机布局：运行 `npm run dev`，然后打开 `http://localhost:1420/?mobile`。
+
 ## 数据存放位置
 
 所有数据都保存在本地，不联网：

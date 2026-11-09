@@ -15,6 +15,8 @@ import Board from "./pages/Board";
 import StatsPage from "./pages/Stats";
 import SettingsPage from "./pages/Settings";
 import { deckColor } from "./utils";
+import { isMobile } from "./platform";
+import MobileNav from "./components/MobileNav";
 
 export type Route =
   | { name: "home" }
@@ -177,8 +179,9 @@ function Shell() {
 
   return (
     <Ctx.Provider value={ctx}>
-      <div className="app">
-        {!studying && (
+      <div className={`app ${studying ? "studying" : ""}`}>
+        {isMobile && <div className="m-backdrop" aria-hidden />}
+        {!studying && !isMobile && (
           <aside className="sidebar">
             <div className="drag-region" data-tauri-drag-region />
             <div className="brand" data-tauri-drag-region>
@@ -231,7 +234,7 @@ function Shell() {
           </aside>
         )}
         <main className="main">
-          <div className="main-drag" data-tauri-drag-region />
+          {!isMobile && <div className="main-drag" data-tauri-drag-region />}
           {route.name === "home" && <Home />}
           {route.name === "study" && <Study key={route.deckId} deckId={route.deckId} />}
           {route.name === "sift" && <Sift key={route.deckId} deckId={route.deckId} />}
@@ -240,6 +243,7 @@ function Shell() {
           {route.name === "board" && <Board key={route.date ?? ""} initialDate={route.date} />}
           {route.name === "settings" && <SettingsPage />}
         </main>
+        {isMobile && !studying && <MobileNav />}
       </div>
 
       {importPath && (

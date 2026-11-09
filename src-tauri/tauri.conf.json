@@ -29,7 +29,9 @@
       "csp": null,
       "assetProtocol": {
         "enable": true,
-        "scope": ["$APPDATA/**"]
+        "scope": [
+          "$APPDATA/**"
+        ]
       }
     }
   },
@@ -48,6 +50,9 @@
     ],
     "macOS": {
       "minimumSystemVersion": "10.15"
+    },
+    "iOS": {
+      "minimumSystemVersion": "16.0"
     }
   }
 }

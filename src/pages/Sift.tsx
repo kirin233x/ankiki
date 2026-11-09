@@ -6,6 +6,7 @@ import CardFrame from "../components/CardFrame";
 import { useToast } from "../components/ui";
 import { renderSide, stripHtml } from "../render";
 import { playSounds, speak, stopAudio } from "../audio";
+import { haptic, isMobile } from "../platform";
 
 interface Done {
   card: CardView;
@@ -70,6 +71,7 @@ export default function Sift({ deckId }: { deckId: number }) {
     async (known: boolean) => {
       if (!card || busy.current) return;
       busy.current = true;
+      haptic();
       setFlash(known ? "known" : "keep");
       try {
         await api.siftAnswer(card.cardId, known);
@@ -264,6 +266,7 @@ export default function Sift({ deckId }: { deckId: number }) {
               dark={app.dark}
               styleMode={app.settings.cardStyle}
               onKey={onKey}
+              onTap={() => setRevealed((v) => !v)}
             />
           </div>
           <div className="answer-bar sift-bar">
@@ -288,7 +291,9 @@ export default function Sift({ deckId }: { deckId: number }) {
               <kbd>2 / →</kbd>
             </button>
           </div>
-          <div className="sift-hint">按空格查看释义 · 熟词随时可以在单词本的「熟词」中恢复</div>
+          <div className="sift-hint">
+            {isMobile ? "轻点卡片查看释义" : "按空格查看释义"} · 熟词随时可以在单词本的「熟词」中恢复
+          </div>
         </div>
       )}
     </div>

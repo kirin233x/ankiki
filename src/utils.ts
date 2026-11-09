@@ -82,5 +82,10 @@ export function greeting(): string {
 }
 
 export function fileName(path: string): string {
-  return path.split(/[\\/]/).pop() ?? path;
+  const name = path.split(/[\\/]/).pop() ?? path;
+  try {
+    return decodeURIComponent(name);
+  } catch {
+    return name;
+  }
 }
