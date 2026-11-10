@@ -99,7 +99,10 @@ npm run ios:init
 npm run ios:xcode
 ```
 
-这条命令会先构建界面，再由 Tauri 打开 Xcode，并一直在后台运行。Xcode 构建 Rust 代码时要从它读取参数。
+这条命令会做三件事：
+- 给 Xcode 的构建脚本补上 node 和 cargo 的路径，避免 `npm: command not found`；
+- 构建界面；
+- 由 Tauri 打开 Xcode，并一直在后台运行。Xcode 构建 Rust 代码时要从它读取参数。
 
 3. 在 Xcode 里：左侧点项目 → 选中 `ankiki_iOS` → **Signing & Capabilities** → Team 选你的 Apple ID（Personal Team 也可以）。如果提示 Bundle Identifier 冲突，改成别的，比如 `com.你的名字.ankiki`。
 4. 顶部选择你的 iPhone，点 ▶（⌘R）。界面已经打包进 App，装好后不依赖 Mac 也能用。
@@ -110,7 +113,7 @@ npm run ios:xcode
 
 **常见报错**
 
-- `npm: command not found`：Xcode 不是由上面的命令打开的。先 ⌘Q 退出 Xcode，再运行 `npm run ios:xcode`。
+- `npm: command not found`：先 ⌘Q 退出 Xcode，再运行 `npm run ios:xcode`，它会自动修复。如果换了 node 版本（比如用 nvm 切换），也重新运行一次。
 - `the tauri ios dev or tauri ios build command must be running`：运行 `npm run ios:xcode` 的终端被关掉了，重新运行即可。
 
 开发调试时也可以用 `npm run ios:dev`（同样会打开 Xcode）。这种方式下，App 从 Mac 上的开发服务器加载界面，手机和 Mac 需要连在同一个 Wi-Fi。

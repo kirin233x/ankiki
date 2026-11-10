@@ -10,10 +10,11 @@
     "tauri": "tauri",
     "app:dev": "tauri dev",
     "app:build": "tauri build",
-    "ios:init": "tauri ios init",
-    "ios:dev": "tauri ios dev --open",
+    "ios:init": "tauri ios init && node scripts/ios-patch-xcode.mjs",
+    "ios:dev": "node scripts/ios-patch-xcode.mjs && tauri ios dev --open",
     "ios:build": "tauri ios build",
-    "ios:xcode": "tauri ios build --open"
+    "ios:xcode": "node scripts/ios-patch-xcode.mjs && tauri ios build --open",
+    "ios:patch": "node scripts/ios-patch-xcode.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.8.0",
