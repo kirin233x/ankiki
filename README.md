@@ -92,20 +92,28 @@ npm run ios:init
 
 ### 安装到手机
 
+1. **先彻底退出 Xcode（⌘Q）**。如果 Xcode 已经开着，新打开的工程会沿用旧的环境，找不到 `npm`。
+2. 在终端里运行下面的命令，**运行期间不要关掉这个终端**：
+
 ```bash
 npm run ios:xcode
 ```
 
-这条命令会先构建界面，再打开 Xcode 工程，然后在 Xcode 里操作：
+这条命令会先构建界面，再由 Tauri 打开 Xcode，并一直在后台运行。Xcode 构建 Rust 代码时要从它读取参数。
 
-1. 左侧点项目 → 选中 `ankiki_iOS` → **Signing & Capabilities** → Team 选你的 Apple ID（Personal Team 也可以）。如果提示 Bundle Identifier 冲突，改成别的，比如 `com.你的名字.ankiki`。
-2. 菜单 **Product → Scheme → Edit Scheme… → Run → Build Configuration** 改成 **Release**。这样界面会打包进 App，不依赖 Mac 运行。
-3. 顶部选择你的 iPhone，点 ▶（⌘R）。
-4. 第一次打开时，如果提示「未受信任的开发者」，在 iPhone 上打开「设置 → 通用 → VPN 与设备管理」，信任你的开发者证书。
+3. 在 Xcode 里：左侧点项目 → 选中 `ankiki_iOS` → **Signing & Capabilities** → Team 选你的 Apple ID（Personal Team 也可以）。如果提示 Bundle Identifier 冲突，改成别的，比如 `com.你的名字.ankiki`。
+4. 顶部选择你的 iPhone，点 ▶（⌘R）。界面已经打包进 App，装好后不依赖 Mac 也能用。
+5. 第一次打开时，如果提示「未受信任的开发者」，在 iPhone 上打开「设置 → 通用 → VPN 与设备管理」，信任你的开发者证书。
+6. 装好后可以在终端按 Ctrl+C 结束。
 
-> 用免费 Apple ID 签名的 App **7 天后会过期**。过期后重复「安装到手机」的步骤即可，词书和学习进度不会丢。
+> 用免费 Apple ID 签名的 App **7 天后会过期**。过期后重复上面的步骤即可，词书和学习进度不会丢。
 
-开发调试时也可以用 `npm run ios:dev`。这种方式下，App 从 Mac 上的开发服务器加载界面，手机和 Mac 需要连在同一个 Wi-Fi。
+**常见报错**
+
+- `npm: command not found`：Xcode 不是由上面的命令打开的。先 ⌘Q 退出 Xcode，再运行 `npm run ios:xcode`。
+- `the tauri ios dev or tauri ios build command must be running`：运行 `npm run ios:xcode` 的终端被关掉了，重新运行即可。
+
+开发调试时也可以用 `npm run ios:dev`（同样会打开 Xcode）。这种方式下，App 从 Mac 上的开发服务器加载界面，手机和 Mac 需要连在同一个 Wi-Fi。
 
 ### 在手机上导入词书
 
