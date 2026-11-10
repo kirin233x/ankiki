@@ -90,7 +90,21 @@ npm run ios:init
 
 4. 用数据线把 iPhone 连到 Mac。在 iPhone 上打开「设置 → 隐私与安全性 → 开发者模式」（如果看不到这一项，先在 Xcode 里连一次手机）。
 
-### 安装到手机
+### 一键构建并安装（推荐）
+
+用数据线连上 iPhone（解锁并信任这台电脑），然后运行：
+
+```bash
+./build_ios.sh
+```
+
+脚本会自动完成这些事：检查环境，安装依赖，生成或修补 Xcode 工程（PATH、图标、启动屏），构建 App，安装到手机并打开。第一次构建大约需要 5~10 分钟，之后会快很多。
+
+- 第一次使用前，需要在 Xcode 里给工程选过一次签名 Team（见下面「安装到手机」第 3 步）。也可以先设置环境变量 `export APPLE_DEVELOPMENT_TEAM=你的TeamID`。
+- `./build_ios.sh --xcode`：改为打开 Xcode，在 Xcode 里手动运行，适合查看详细报错。
+- 连了多台设备时，用 `./build_ios.sh --device 设备ID` 指定，设备 ID 可以用 `xcrun devicectl list devices` 查看。
+
+### 安装到手机（手动方式）
 
 1. **先彻底退出 Xcode（⌘Q）**。如果 Xcode 已经开着，新打开的工程会沿用旧的环境，找不到 `npm`。
 2. 在终端里运行下面的命令，**运行期间不要关掉这个终端**：

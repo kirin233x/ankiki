@@ -5,6 +5,9 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, State};
 
+#[cfg(target_os = "ios")]
+mod ios_splash;
+
 struct AppState(Mutex<Collection>);
 
 type CmdResult<T> = Result<T, String>;
@@ -265,6 +268,17 @@ fn deck_fields(state: State<AppState>, deck_id: i64) -> CmdResult<Vec<String>> {
     with_col!(state, col => col.deck_fields(deck_id))
 }
 
+/// 网页启动画面淡出后调用：移除 iOS 上垫在 WebView 下面的原生 Logo
+#[tauri::command]
+fn splash_done(app: AppHandle) {
+    #[cfg(target_os = "ios")]
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.with_webview(|pw| unsafe { ios_splash::remove_launch_logo(pw.inner()) });
+    }
+    #[cfg(not(target_os = "ios"))]
+    let _ = app;
+}
+
 #[tauri::command]
 fn data_dir(app: AppHandle) -> CmdResult<String> {
     app.path()
@@ -282,6 +296,11 @@ pub fn run() {
             let col = Collection::open(&dir)
                 .map_err(|e| format!("无法打开数据目录 {}：{e}", dir.display()))?;
             app.manage(AppState(Mutex::new(col)));
+            // iOS：WebView 加载期间显示与启动屏相同的原生 Logo，衔接原生启动屏和网页启动画面
+            #[cfg(target_os = "ios")]
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.with_webview(|pw| unsafe { ios_splash::install_launch_logo(pw.inner()) });
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -316,6 +335,7 @@ pub fn run() {
             word_board,
             deck_fields,
             data_dir,
+            splash_done,
         ])
         .run(tauri::generate_context!())
         .expect("启动 Ankiki 失败");
