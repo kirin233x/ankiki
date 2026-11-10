@@ -125,7 +125,7 @@ npm run ios:xcode
 
 > 用免费 Apple ID 签名的 App **7 天后会过期**。过期后重复上面的步骤即可，词书和学习进度不会丢。
 
-> 启动画面：`npm run ios:xcode` 会自动给 Xcode 工程换上 Ankiki 的启动屏（紫色 + Logo），素材在 `src-tauri/ios-assets/`。iOS 会缓存启动屏，如果装好后还看到旧的黑屏，重启一下手机即可。
+> 启动画面：`npm run ios:xcode` 会自动给 Xcode 工程换上 Ankiki 的图标和启动屏（纯紫色背景），素材在 `src-tauri/ios-assets/`。iOS 会缓存启动屏，如果装好后还看到旧的黑屏，重启一下手机即可。
 
 **常见报错**
 

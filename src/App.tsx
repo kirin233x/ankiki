@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { BarChart3, BookOpen, Download, House, Library, Plus, Settings as SettingsIcon, LayoutGrid } from "lucide-react";
-import { api, DeckInfo, isTauri, onFileDrop, pickPackage, Settings, Stats } from "./api";
+import { api, DeckInfo, onFileDrop, pickPackage, Settings, Stats } from "./api";
 import { ToastProvider, useToast } from "./components/ui";
 import ImportDialog from "./components/ImportDialog";
 import AddNoteDialog from "./components/AddNoteDialog";
@@ -84,11 +84,7 @@ async function hideSplash() {
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   await new Promise((r) => setTimeout(r, 120));
   el.classList.add("hide");
-  setTimeout(() => {
-    el.remove();
-    // iOS：移除垫在 WebView 下面的原生 Logo
-    if (isTauri) import("@tauri-apps/api/core").then((m) => m.invoke("splash_done")).catch(() => {});
-  }, 360);
+  setTimeout(() => el.remove(), 360);
 }
 
 function Shell() {

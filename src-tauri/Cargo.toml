@@ -23,13 +23,6 @@ serde_json = "1"
 tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-dialog = "2"
 
-# iOS 原生启动 Logo（见 src/ios_splash.rs）
-[target.'cfg(target_os = "ios")'.dependencies]
-objc2 = "0.6"
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString"] }
-objc2-ui-kit = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "UIResponder", "UIView", "UIImageView", "UIImage", "UIColor", "UIScrollView"] }
-objc2-core-foundation = { version = "0.3", default-features = false, features = ["std", "CFCGTypes"] }
-
 [profile.release]
 codegen-units = 1
 lto = true

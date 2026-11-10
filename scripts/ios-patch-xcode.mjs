@@ -5,7 +5,7 @@
 //    找不到 Homebrew / nvm 安装的 node、npm，也找不到 ~/.cargo/bin 下的 cargo。
 //    这里在「Build Rust Code」脚本开头加一行 export PATH=…。
 //
-// 2. 换上 Ankiki 的 App 图标和启动屏（品牌紫色 + Logo），替换默认的白/黑色空白启动屏。
+// 2. 换上 Ankiki 的 App 图标和启动屏（纯品牌紫色），替换默认的白/黑色空白启动屏。
 //    素材在 src-tauri/ios-assets/ 下。
 import { cpSync, existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -26,12 +26,14 @@ const assetsSrc = join(process.cwd(), "src-tauri", "ios-assets");
 if (existsSync(assetsSrc)) {
   cpSync(join(assetsSrc, "LaunchScreen.storyboard"), join(appleDir, "LaunchScreen.storyboard"));
   const catalog = join(appleDir, "Assets.xcassets");
+  // 旧版本的启动 Logo 已不再使用
+  rmSync(join(catalog, "LaunchLogo.imageset"), { recursive: true, force: true });
   for (const entry of readdirSync(join(assetsSrc, "Assets.xcassets"))) {
     // 整个替换（例如 AppIcon 原来有十几张不同尺寸的图，现在只用一张 1024 的）
     rmSync(join(catalog, entry), { recursive: true, force: true });
     cpSync(join(assetsSrc, "Assets.xcassets", entry), join(catalog, entry), { recursive: true });
   }
-  console.log("[ios-patch] 已更新 App 图标和启动屏（AppIcon、LaunchScreen、LaunchLogo、LaunchBackground）");
+  console.log("[ios-patch] 已更新 App 图标和启动屏（AppIcon、LaunchScreen、LaunchBackground）");
 }
 
 // ---------------------------------------------------------------- PATH
