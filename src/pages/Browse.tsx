@@ -476,7 +476,6 @@ export default function Browse({ initialDeck }: { initialDeck: number | null }) 
                 mediaDir={detail.view.notetype.mediaDir}
                 ord={detail.view.ord}
                 dark={app.dark}
-                styleMode={app.settings.cardStyle}
                 compact
               />
             </div>

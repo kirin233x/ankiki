@@ -1875,11 +1875,17 @@ table.cards td.num {
   gap: 18px;
   margin-top: 18px;
 }
+.heatmap-scroll {
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+.heatmap-inner {
+  width: max-content;
+}
 .heatmap {
   display: flex;
   gap: 3px;
-  overflow-x: auto;
-  padding-bottom: 4px;
 }
 .heatmap-col {
   display: flex;

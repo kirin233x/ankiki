@@ -265,7 +265,6 @@ export default function Study({ deckId }: { deckId: number }) {
               mediaDir={card.notetype.mediaDir}
               ord={card.ord}
               dark={app.dark}
-              styleMode={app.settings.cardStyle}
               onKey={onKey}
               onEnter={reveal}
               onTap={reveal}

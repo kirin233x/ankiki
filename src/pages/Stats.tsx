@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Brain, CalendarCheck, Clock, Flame, Target } from "lucide-react";
 import { api, Stats } from "../api";
 import { useApp } from "../App";
@@ -146,11 +146,20 @@ function Heatmap({
     return { weeks, months, max };
   }, [data]);
 
+  // 默认滚到最右边，先看到最近的几个月
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, [weeks]);
+
   const level = (c: number) => (c === 0 ? 0 : Math.min(4, Math.ceil((c / max) * 4)));
 
   return (
     <div>
-      <div style={{ overflowX: "auto" }}>
+      {/* 月份行和格子放在同一个滚动区域里，滚动时一起移动 */}
+      <div className="heatmap-scroll" ref={scrollRef}>
+        <div className="heatmap-inner">
         <div className="heatmap-months">
           {months.map((m, i) => (
             <div key={i} style={{ width: 13, flexShrink: 0, whiteSpace: "nowrap" }}>
@@ -172,6 +181,7 @@ function Heatmap({
               ))}
             </div>
           ))}
+        </div>
         </div>
       </div>
       <div className="heatmap-legend">

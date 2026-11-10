@@ -264,7 +264,6 @@ export default function Sift({ deckId }: { deckId: number }) {
               mediaDir={card.notetype.mediaDir}
               ord={card.ord}
               dark={app.dark}
-              styleMode={app.settings.cardStyle}
               onKey={onKey}
               onTap={() => setRevealed((v) => !v)}
             />

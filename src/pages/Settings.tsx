@@ -40,26 +40,6 @@ export default function SettingsPage() {
                 </button>
               </div>
             </div>
-            <div className="setting-row">
-              <div className="setting-text">
-                <b>卡片样式</b>
-                <span>「原样式」保留词书作者设计的排版；「Ankiki 美化」使用统一的现代字体与配色</span>
-              </div>
-              <div className="segmented">
-                <button
-                  className={settings.cardStyle === "original" ? "on" : ""}
-                  onClick={() => set("cardStyle", "original")}
-                >
-                  原样式
-                </button>
-                <button
-                  className={settings.cardStyle === "ankiki" ? "on" : ""}
-                  onClick={() => set("cardStyle", "ankiki")}
-                >
-                  Ankiki 美化
-                </button>
-              </div>
-            </div>
           </div>
         </div>
 

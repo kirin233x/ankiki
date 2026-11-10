@@ -8,7 +8,6 @@ interface Props {
   mediaDir: string;
   ord: number;
   dark: boolean;
-  styleMode: "original" | "ankiki";
   /** iframe 内的按键转发给外层（快捷键） */
   onKey?: (e: KeyboardEvent) => void;
   /** 在输入答案框里按回车 */
@@ -51,26 +50,14 @@ input.typeans:focus { border-color: #6d5bff; box-shadow: 0 0 0 4px rgba(109,91,2
 ::-webkit-scrollbar-thumb { background: rgba(127,127,127,.3); border-radius: 4px; }
 `;
 
-const ANKIKI_CSS = `
-.card {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  font-size: 22px; line-height: 1.7; text-align: center; color: #1c2030; background: transparent;
-}
-.card b, .card strong { color: #4b3fd1; }
-.card hr, hr#answer { border: none; height: 1px; background: linear-gradient(90deg, transparent, #d9d6f5, transparent); margin: 28px auto; width: 80%; }
-.nightMode.card { color: #e8eaf2; }
-.nightMode.card b, .nightMode.card strong { color: #b9b0ff; }
-.nightMode hr, .nightMode hr#answer { background: linear-gradient(90deg, transparent, #3a3f5c, transparent); }
-`;
-
 export default function CardFrame(props: Props) {
   const ref = useRef<HTMLIFrameElement>(null);
   const cb = useRef(props);
   cb.current = props;
 
   const srcDoc = useMemo(() => {
-    const deckCss = props.styleMode === "original" ? rewriteCssUrls(props.css, props.mediaDir) : "";
-    const extra = props.styleMode === "ankiki" ? ANKIKI_CSS : "";
+    // 始终使用词书自带的样式
+    const deckCss = rewriteCssUrls(props.css, props.mediaDir);
     const bodyCls = [
       "card",
       `card${props.ord + 1}`,
@@ -78,9 +65,8 @@ export default function CardFrame(props: Props) {
       props.compact ? "compact" : "",
     ].join(" ");
     const html = rewriteMedia(props.html, props.mediaDir);
-    const transparent = props.styleMode === "ankiki" ? "html,body{background:transparent!important}" : "";
-    return `<!doctype html><html><head><meta charset="utf-8"><style>${BASE_CSS}</style><style>${deckCss}</style><style>${extra}${transparent}</style></head><body class="${bodyCls}"><div id="qa">${html}</div></body></html>`;
-  }, [props.html, props.css, props.mediaDir, props.ord, props.dark, props.styleMode, props.compact]);
+    return `<!doctype html><html><head><meta charset="utf-8"><style>${BASE_CSS}</style><style>${deckCss}</style></head><body class="${bodyCls}"><div id="qa">${html}</div></body></html>`;
+  }, [props.html, props.css, props.mediaDir, props.ord, props.dark, props.compact]);
 
   useEffect(() => {
     const frame = ref.current;
