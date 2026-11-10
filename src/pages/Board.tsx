@@ -325,7 +325,6 @@ function WordDetail({ item, onClose }: { item: BoardItem; onClose: () => void })
             mediaDir={detail.view.notetype.mediaDir}
             ord={detail.view.ord}
             dark={app.dark}
-            styleMode={app.settings.cardStyle}
             compact
           />
         )}

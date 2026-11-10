@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" fill="#6D5BFF"/>
+  <g transform="translate(512 512) scale(5.6) translate(-60 -55)">
+  <defs>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F1EEFF"/>
+    </linearGradient>
+    <filter id="s" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#2A1065" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <g filter="url(#s)">
+    <rect x="31" y="17" width="58" height="76" rx="11" fill="#FFFFFF" opacity="0.32" transform="rotate(-12 60 55)"/>
+    <rect x="30" y="16" width="60" height="78" rx="11" fill="url(#card)"/>
+  </g>
+  <text x="60" y="71" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="48" font-weight="700" fill="#6D5BFF">A</text>
+  <rect x="45" y="80" width="30" height="4" rx="2" fill="#EC4899" opacity="0.85"/>
+  <circle cx="86" cy="20" r="7" fill="#FFD166"/>
+
+</g>
+</svg>
