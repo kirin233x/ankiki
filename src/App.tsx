@@ -68,16 +68,23 @@ function useSystemDark() {
   return dark;
 }
 
-/** 数据准备好、首屏已经画出来之后，淡出启动画面 */
-function hideSplash() {
+/** 数据准备好、首屏已经画出来并且布局稳定之后，淡出启动画面 */
+let splashHiding = false;
+async function hideSplash() {
   const el = document.getElementById("splash");
-  if (!el || el.classList.contains("hide")) return;
-  requestAnimationFrame(() =>
-    requestAnimationFrame(() => {
-      el.classList.add("hide");
-      setTimeout(() => el.remove(), 400);
-    }),
-  );
+  if (!el || splashHiding) return;
+  splashHiding = true;
+  // 等字体加载完，避免淡出过程中文字换字体导致页面跳动
+  try {
+    await Promise.race([document.fonts?.ready, new Promise((r) => setTimeout(r, 400))]);
+  } catch {
+    /* 忽略 */
+  }
+  // 等两帧让首屏真正画出来，再留一点时间给 iOS 更新安全区（刘海）等布局
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  await new Promise((r) => setTimeout(r, 120));
+  el.classList.add("hide");
+  setTimeout(() => el.remove(), 360);
 }
 
 function Shell() {

@@ -12,7 +12,9 @@
         inset: 0;
         z-index: 2147483647;
         background: #6d5bff;
-        transition: opacity 0.32s ease;
+        transition: opacity 0.3s ease-out;
+        will-change: opacity;
+        transform: translateZ(0);
       }
       #splash img {
         position: absolute;
@@ -21,7 +23,6 @@
         width: 120px;
         height: 120px;
         margin: -60px 0 0 -60px;
-        transition: transform 0.32s ease;
       }
       #splash i {
         position: absolute;
@@ -39,9 +40,6 @@
       #splash.hide {
         opacity: 0;
         pointer-events: none;
-      }
-      #splash.hide img {
-        transform: scale(1.08);
       }
       html.desktop #splash {
         display: none;

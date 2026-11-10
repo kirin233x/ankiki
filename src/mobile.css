@@ -55,7 +55,6 @@
     radial-gradient(45% 32% at 75% 78%, rgba(59, 130, 246, 0.3), transparent 70%),
     radial-gradient(40% 30% at 15% 85%, rgba(16, 185, 129, 0.22), transparent 70%),
     #eef0f9;
-  animation: drift 26s ease-in-out infinite alternate;
 }
 [data-theme="dark"] .m-backdrop {
   background:
@@ -64,19 +63,6 @@
     radial-gradient(45% 32% at 75% 78%, rgba(59, 130, 246, 0.22), transparent 70%),
     radial-gradient(40% 30% at 15% 85%, rgba(16, 185, 129, 0.14), transparent 70%),
     #0c0d14;
-}
-@keyframes drift {
-  from {
-    transform: translate3d(0, 0, 0) rotate(0deg);
-  }
-  to {
-    transform: translate3d(-4%, 3%, 0) rotate(6deg);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .m-backdrop {
-    animation: none;
-  }
 }
 
 /* ---------------------------------------------------------------- 通用玻璃材质 */
