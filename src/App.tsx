@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { BarChart3, BookOpen, Download, House, Library, Plus, Settings as SettingsIcon, LayoutGrid } from "lucide-react";
-import { api, DeckInfo, onFileDrop, pickPackage, Settings } from "./api";
+import { api, DeckInfo, onFileDrop, pickPackage, Settings, Stats } from "./api";
 import { ToastProvider, useToast } from "./components/ui";
 import ImportDialog from "./components/ImportDialog";
 import AddNoteDialog from "./components/AddNoteDialog";
@@ -32,6 +32,8 @@ interface AppCtx {
   saveSettings: (s: Settings) => Promise<void>;
   decks: DeckInfo[];
   decksLoaded: boolean;
+  /** 首页用的全局统计（与词书一起加载，避免首页先空后满地闪一下） */
+  homeStats: Stats | null;
   refreshDecks: () => Promise<void>;
   route: Route;
   go: (r: Route) => void;
@@ -66,11 +68,25 @@ function useSystemDark() {
   return dark;
 }
 
+/** 数据准备好、首屏已经画出来之后，淡出启动画面 */
+function hideSplash() {
+  const el = document.getElementById("splash");
+  if (!el || el.classList.contains("hide")) return;
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      el.classList.add("hide");
+      setTimeout(() => el.remove(), 400);
+    }),
+  );
+}
+
 function Shell() {
   const toast = useToast();
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [decks, setDecks] = useState<DeckInfo[]>([]);
   const [decksLoaded, setDecksLoaded] = useState(false);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [homeStats, setHomeStats] = useState<Stats | null>(null);
   const [route, setRoute] = useState<Route>({ name: "home" });
   const [importPath, setImportPath] = useState<string | null>(null);
   const [addNoteDeck, setAddNoteDeck] = useState<number | null | undefined>(undefined);
@@ -87,7 +103,9 @@ function Shell() {
 
   const refreshDecks = useCallback(async () => {
     try {
-      setDecks(await api.listDecks());
+      const [d, st] = await Promise.all([api.listDecks(), api.getStats(null).catch(() => null)]);
+      setDecks(d);
+      if (st) setHomeStats(st);
     } catch (e) {
       toast(String(e), true);
     } finally {
@@ -96,9 +114,23 @@ function Shell() {
   }, [toast]);
 
   useEffect(() => {
-    api.getSettings().then(setSettings).catch(() => {});
+    api
+      .getSettings()
+      .then(setSettings)
+      .catch(() => {})
+      .finally(() => setSettingsLoaded(true));
     refreshDecks();
   }, [refreshDecks]);
+
+  const ready = settingsLoaded && decksLoaded;
+  useEffect(() => {
+    if (ready) hideSplash();
+  }, [ready]);
+  useEffect(() => {
+    // 兜底：无论如何 8 秒后都进入 App
+    const t = setTimeout(hideSplash, 8000);
+    return () => clearTimeout(t);
+  }, []);
 
   // 跨过学习日或回到窗口时刷新到期数量
   useEffect(() => {
@@ -152,6 +184,7 @@ function Shell() {
       saveSettings,
       decks,
       decksLoaded,
+      homeStats,
       refreshDecks,
       route,
       go,
@@ -163,7 +196,7 @@ function Shell() {
       renameDeck: (deck) => setPrompt({ kind: "rename", deck }),
       openSync: () => setSyncOpen(true),
     }),
-    [settings, saveSettings, decks, decksLoaded, refreshDecks, route, go, dark, startImport],
+    [settings, saveSettings, decks, decksLoaded, homeStats, refreshDecks, route, go, dark, startImport],
   );
 
   const totalDue = decks.reduce((s, d) => s + d.due.new + d.due.learning + d.due.review, 0);
@@ -176,6 +209,9 @@ function Shell() {
     { key: "stats", label: "学习统计", icon: <BarChart3 size={18} />, route: { name: "stats" } as Route },
     { key: "settings", label: "设置", icon: <SettingsIcon size={18} />, route: { name: "settings" } as Route },
   ];
+
+  // 数据加载完成前只渲染空的底色（手机上被启动画面盖住），避免先出现空页面再闪成有数据的页面
+  if (!ready) return <div className="app" />;
 
   return (
     <Ctx.Provider value={ctx}>

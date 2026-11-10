@@ -1,10 +1,13 @@
-// 修复 Xcode 构建时找不到 npm 的问题（npm: command not found）。
+// 对 `tauri ios init` 生成的 Xcode 工程做两处调整（可以重复运行）：
 //
-// 从「访达」或 `open` 启动的 Xcode 只有系统默认的 PATH（/usr/bin:/bin…），
-// 找不到 Homebrew / nvm 安装的 node、npm，也找不到 ~/.cargo/bin 下的 cargo。
-// 这个脚本在 Xcode 工程的「Build Rust Code」脚本开头加一行 export PATH=…，
-// 把当前终端里 node 所在的目录和常见的安装目录加进去。可以重复运行。
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+// 1. 修复 Xcode 构建时找不到 npm 的问题（npm: command not found）。
+//    从「访达」或 `open` 启动的 Xcode 只有系统默认的 PATH（/usr/bin:/bin…），
+//    找不到 Homebrew / nvm 安装的 node、npm，也找不到 ~/.cargo/bin 下的 cargo。
+//    这里在「Build Rust Code」脚本开头加一行 export PATH=…。
+//
+// 2. 换上 Ankiki 的启动屏（品牌紫色 + Logo），替换默认的白/黑色空白启动屏。
+//    素材在 src-tauri/ios-assets/ 下。
+import { cpSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 
@@ -18,6 +21,18 @@ if (!proj) {
   console.log("[ios-patch] 没有找到 .xcodeproj，跳过");
   process.exit(0);
 }
+// ---------------------------------------------------------------- 启动屏
+const assetsSrc = join(process.cwd(), "src-tauri", "ios-assets");
+if (existsSync(assetsSrc)) {
+  cpSync(join(assetsSrc, "LaunchScreen.storyboard"), join(appleDir, "LaunchScreen.storyboard"));
+  const catalog = join(appleDir, "Assets.xcassets");
+  for (const entry of readdirSync(join(assetsSrc, "Assets.xcassets"))) {
+    cpSync(join(assetsSrc, "Assets.xcassets", entry), join(catalog, entry), { recursive: true });
+  }
+  console.log("[ios-patch] 已更新启动屏（LaunchScreen.storyboard、LaunchLogo、LaunchBackground）");
+}
+
+// ---------------------------------------------------------------- PATH
 const file = join(appleDir, proj, "project.pbxproj");
 let text = readFileSync(file, "utf8");
 

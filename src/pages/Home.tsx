@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
   BarChart3,
   BookOpen,
@@ -19,7 +19,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
-import { api, DeckInfo, Stats } from "../api";
+import { api, DeckInfo } from "../api";
 import { useApp } from "../App";
 import { Confirm, Menu, useToast } from "../components/ui";
 import { deckGlyph, deckGradient, formatDuration, greeting } from "../utils";
@@ -27,11 +27,7 @@ import { deckGlyph, deckGradient, formatDuration, greeting } from "../utils";
 export default function Home() {
   const app = useApp();
   const { decks, decksLoaded } = app;
-  const [stats, setStats] = useState<Stats | null>(null);
-
-  useEffect(() => {
-    api.getStats(null).then(setStats).catch(() => {});
-  }, [decks]);
+  const stats = app.homeStats;
 
   if (decksLoaded && decks.length === 0) return <Empty />;
 
