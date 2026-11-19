@@ -32,7 +32,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-darwin,x86_64-apple-darwin
+          targets: aarch64-apple-darwin
 
       - uses: swatinem/rust-cache@v2
         with:
@@ -57,16 +57,16 @@ jobs:
               fs.writeFileSync(f, JSON.stringify(j, null, 2) + "\n");
             }' "$VERSION"
 
-      - name: 打包（Universal：同时支持 Apple 芯片与 Intel）
-        run: npx tauri build --target universal-apple-darwin --bundles app,dmg
+      - name: 打包（Apple 芯片 arm64）
+        run: npx tauri build --target aarch64-apple-darwin --bundles app,dmg
 
       - name: 整理安装包
         id: dmg
         run: |
           VERSION="$(node -p 'require("./src-tauri/tauri.conf.json").version')"
           mkdir -p release
-          SRC="$(ls src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg | head -1)"
-          OUT="release/Ankiki_${VERSION}_universal.dmg"
+          SRC="$(ls src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg | head -1)"
+          OUT="release/Ankiki_${VERSION}_arm64.dmg"
           cp "$SRC" "$OUT"
           echo "path=$OUT" >> "$GITHUB_OUTPUT"
 
@@ -85,7 +85,7 @@ jobs:
           generate_release_notes: true
           body: |
             ## 安装
-            1. 下载下面的 `Ankiki_*_universal.dmg`（Apple 芯片和 Intel 的 Mac 都能用），打开后把 Ankiki 拖进「应用程序」。
+            1. 下载下面的 `Ankiki_*_arm64.dmg`（适用于 M 系列 Apple 芯片的 Mac），打开后把 Ankiki 拖进「应用程序」。
             2. 第一次打开时如果提示「无法验证开发者」或「已损坏」：
                - 打开「系统设置 → 隐私与安全性」，在底部找到 Ankiki，点「仍要打开」；
                - 或者在终端执行：`xattr -cr /Applications/Ankiki.app`

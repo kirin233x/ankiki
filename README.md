@@ -80,6 +80,8 @@ npm run tauri dev
 
   几分钟后 DMG 会自动出现在仓库的 **Releases** 页面，版本号取自标签，把链接发给别人就行。
 
+  > GitHub 自动打包的是 Apple 芯片（arm64）版本；需要 Intel 版可以在本地运行 `./build-macos.sh`。
+
 **别人第一次打开时**：应用没有经过 Apple 公证（需要每年 99 美元的开发者账号），macOS 会提示「无法验证开发者」或「已损坏」。在「系统设置 → 隐私与安全性」底部点「仍要打开」，或者在终端执行 `xattr -cr /Applications/Ankiki.app` 即可。
 
 ## 数据存放位置
