@@ -78,6 +78,8 @@ npm run tauri dev
   git tag v0.2.0 && git push origin v0.2.0
   ```
 
+  或者在 GitHub 网页上进入 **Actions → 打包 macOS 应用 → Run workflow**，填写版本号（如 `0.2.0`）后运行，效果相同，会自动打标签。
+
   几分钟后 DMG 会自动出现在仓库的 **Releases** 页面，版本号取自标签，把链接发给别人就行。
 
   > GitHub 自动打包的是 Apple 芯片（arm64）版本；需要 Intel 版可以在本地运行 `./build-macos.sh`。

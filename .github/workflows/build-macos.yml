@@ -4,9 +4,15 @@ name: 打包 macOS 应用
 #   · 推送代码到主分支：自动打包，DMG 在本次运行的 Artifacts 里下载
 #   · 推送 v 开头的标签（如 git tag v0.2.0 && git push origin v0.2.0）：
 #     自动打包并发布到仓库的 Releases 页面，直接把链接发给别人即可
-#   · Actions 页面手动点 Run workflow
+#   · Actions 页面手动点 Run workflow：填写版本号（如 0.2.0）就会发布 Release 并自动打标签，
+#     留空则只打包不发布
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "发布版本号（如 0.2.0），留空只打包不发布"
+        required: false
+        default: ""
   push:
     branches: [main, master, claude/fervent-mendel-73thpy]
     tags: ["v*"]
@@ -22,6 +28,8 @@ concurrency:
 jobs:
   build:
     runs-on: macos-latest
+    env:
+      RELEASE_VERSION: ${{ inputs.version || (startsWith(github.ref, 'refs/tags/v') && github.ref_name) || '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -45,10 +53,11 @@ jobs:
         working-directory: src-tauri
         run: cargo test -p ankiki-core
 
-      - name: 标签版本号写入应用
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: 版本号写入应用
+        if: env.RELEASE_VERSION != ''
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_VERSION#v}"
+          echo "RELEASE_TAG=v$VERSION" >> "$GITHUB_ENV"
           node -e '
             const fs = require("fs"), v = process.argv[1];
             for (const f of ["package.json", "src-tauri/tauri.conf.json"]) {
@@ -78,9 +87,11 @@ jobs:
           if-no-files-found: error
 
       - name: 发布到 Releases
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: env.RELEASE_VERSION != ''
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          target_commitish: ${{ github.sha }}
           files: ${{ steps.dmg.outputs.path }}
           generate_release_notes: true
           body: |
