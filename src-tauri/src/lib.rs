@@ -249,14 +249,29 @@ fn data_dir(app: AppHandle) -> CmdResult<String> {
         .map_err(|e| e.to_string())
 }
 
+/// 首次启动时自动导入随应用附带的词书（失败不影响启动）
+fn install_builtin_decks(app: &tauri::App, col: &mut Collection) {
+    use tauri::path::BaseDirectory;
+    let Ok(path) = app.path().resolve("resources/toeic.apkg", BaseDirectory::Resource) else {
+        return;
+    };
+    if !path.exists() {
+        return;
+    }
+    if let Err(e) = col.install_builtin_deck("toeic_tsl_v1", &path, "内置托业词书") {
+        eprintln!("导入内置词书失败：{e}");
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let dir = app.path().app_data_dir()?;
-            let col = Collection::open(&dir)
+            let mut col = Collection::open(&dir)
                 .map_err(|e| format!("无法打开数据目录 {}：{e}", dir.display()))?;
+            install_builtin_decks(app, &mut col);
             app.manage(AppState(Mutex::new(col)));
             Ok(())
         })

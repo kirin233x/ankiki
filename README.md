@@ -102,6 +102,10 @@ npm run tauri dev
 
 第一次运行时 SmartScreen 可能提示「已保护你的电脑」，点「更多信息 → 仍要运行」即可。Windows 上的数据保存在 `%APPDATA%\com.kirin233x.ankiki\`。
 
+## 内置词书
+
+安装包自带「内置托业词书」（TOEIC TSL 核心词汇 1250 词，含音标、例句、搭配、词根和助记），第一次打开应用时自动导入。删除后不会再自动装回来，需要的话可以从 `src-tauri/resources/toeic.apkg` 手动导入。
+
 ## 数据存放位置
 
 所有数据都保存在本地，不联网：

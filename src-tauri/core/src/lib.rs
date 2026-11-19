@@ -315,6 +315,30 @@ impl Collection {
         Ok(())
     }
 
+    /// 安装随应用附带的内置词书：每个 `key` 只安装一次，
+    /// 用户之后删除了也不会再自动装回来。返回是否本次新装。
+    pub fn install_builtin_deck(&mut self, key: &str, path: &Path, deck_name: &str) -> Result<bool> {
+        let meta_key = format!("builtin:{key}");
+        let done = self
+            .conn
+            .query_row("SELECT 1 FROM meta WHERE key = ?", [&meta_key], |_| Ok(true))
+            .optional()?
+            .unwrap_or(false);
+        if done {
+            return Ok(false);
+        }
+        let opts = importer::ImportOptions {
+            include_progress: false,
+            deck_name: Some(deck_name.to_string()),
+        };
+        self.import_package(path, &opts, &|_| {})?;
+        self.conn.execute(
+            "INSERT OR REPLACE INTO meta (key, value) VALUES (?, '1')",
+            [&meta_key],
+        )?;
+        Ok(true)
+    }
+
     /// 重新排列新卡顺序（随机或按添加顺序）
     pub fn reorder_new_cards(&self, deck_id: i64, random: bool) -> Result<()> {
         let order = if random { "RANDOM()" } else { "note_id, ord" };

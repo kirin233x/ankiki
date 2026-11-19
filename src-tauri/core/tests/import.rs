@@ -160,3 +160,24 @@ fn old_database_is_migrated_on_open() {
     let r = col.search_cards(&SearchQuery { sort: "sort".into(), ..Default::default() }).unwrap();
     assert_eq!(r.rows[0].front, "abandon");
 }
+
+#[test]
+fn builtin_toeic_deck_installs_once() {
+    let (mut col, _d) = open();
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../resources/toeic.apkg");
+    assert!(col.install_builtin_deck("toeic_tsl_v1", &path, "内置托业词书").unwrap());
+    let decks = col.list_decks().unwrap();
+    assert_eq!(decks.len(), 1);
+    assert_eq!(decks[0].name, "内置托业词书");
+    assert_eq!(decks[0].total_cards, 1250);
+    assert_eq!(decks[0].new_cards, 1250);
+
+    // 第一张卡的单词识别正确
+    let st = col.study_state(decks[0].id).unwrap();
+    assert_eq!(st.card.unwrap().notetype.fields[0], "Word");
+
+    // 删除后不会再自动装回来
+    col.delete_deck(decks[0].id).unwrap();
+    assert!(!col.install_builtin_deck("toeic_tsl_v1", &path, "内置托业词书").unwrap());
+    assert!(col.list_decks().unwrap().is_empty());
+}
