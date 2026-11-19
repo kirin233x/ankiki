@@ -72,7 +72,7 @@ npm run tauri dev
 **方式二：GitHub 自动打包（不用自己的电脑）**
 
 - 每次推送代码，GitHub Actions 都会自动打包，在 **Actions → 打包 macOS 应用 → 本次运行 → Artifacts** 里下载 DMG。
-- 想正式发版时，打一个标签：
+- 想正式发版时，把 `src-tauri/tauri.conf.json` 里的 `version` 改大（如 `0.2.0`）再推送，会自动发布到 **Releases**（该版本已发布过则只打包）。也可以打一个标签：
 
   ```bash
   git tag v0.2.0 && git push origin v0.2.0
