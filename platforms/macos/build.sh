@@ -3,15 +3,15 @@
 #  Ankiki macOS 一键打包脚本：生成可以发给别人的 .dmg
 #
 #  用法：
-#    ./build-macos.sh            打包 Universal 版（Apple 芯片 + Intel 都能用）
-#    ./build-macos.sh --native   只打包本机架构（更快，适合自己用）
-#    ./build-macos.sh --help     查看帮助
+#    platforms/macos/build.sh            打包 Universal 版（Apple 芯片 + Intel 都能用）
+#    platforms/macos/build.sh --native   只打包本机架构（更快，适合自己用）
+#    platforms/macos/build.sh --help     查看帮助
 #
 #  产物：release/Ankiki_<版本>_<架构>.dmg
 # =====================================================================
 set -euo pipefail
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/../.."
 ROOT="$(pwd)"
 MODE="universal"
 

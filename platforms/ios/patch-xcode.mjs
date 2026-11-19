@@ -6,12 +6,15 @@
 //    这里在「Build Rust Code」脚本开头加一行 export PATH=…。
 //
 // 2. 换上 Ankiki 的 App 图标和启动屏（纯品牌紫色），替换默认的白/黑色空白启动屏。
-//    素材在 src-tauri/ios-assets/ 下。
+//    素材在 platforms/ios/assets/ 下。
 import { cpSync, existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 
-const appleDir = join(process.cwd(), "src-tauri", "gen", "apple");
+const here = dirname(fileURLToPath(import.meta.url));
+const root = join(here, "..", "..");
+const appleDir = join(root, "src-tauri", "gen", "apple");
 if (!existsSync(appleDir)) {
   console.log("[ios-patch] 还没有生成 iOS 工程，跳过（先运行 npm run ios:init）");
   process.exit(0);
@@ -22,7 +25,7 @@ if (!proj) {
   process.exit(0);
 }
 // ---------------------------------------------------------------- 启动屏
-const assetsSrc = join(process.cwd(), "src-tauri", "ios-assets");
+const assetsSrc = join(here, "assets");
 if (existsSync(assetsSrc)) {
   cpSync(join(assetsSrc, "LaunchScreen.storyboard"), join(appleDir, "LaunchScreen.storyboard"));
   const catalog = join(appleDir, "Assets.xcassets");

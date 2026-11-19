@@ -1,7 +1,7 @@
 name: 打包应用
 
 # 触发方式：
-#   · 推送到主分支：打包 macOS（Apple 芯片）和 Windows 安装包，在本次运行的 Artifacts 里下载
+#   · 推送到 master：打包 macOS（Apple 芯片）和 Windows 安装包，在本次运行的 Artifacts 里下载
 #     如果 tauri.conf.json 里的版本号还没有发布过，会自动发布 Release（想发新版：把版本号改大再推送）
 #   · 推送 v 开头的标签（如 git tag v0.2.0 && git push origin v0.2.0）：打包并发布 Release
 #   · Actions 页面手动点 Run workflow：填写版本号就发布，留空只打包
@@ -13,7 +13,7 @@ on:
         required: false
         default: ""
   push:
-    branches: [main, master, claude/fervent-mendel-73thpy]
+    branches: [master, main, claude/fervent-mendel-73thpy]
     tags: ["v*"]
   pull_request:
 

@@ -64,7 +64,7 @@ npm run tauri dev
 **方式一：本地一条命令**
 
 ```bash
-./build-macos.sh
+platforms/macos/build.sh
 ```
 
 生成 `release/Ankiki_<版本>_universal.dmg`，Apple 芯片和 Intel 的 Mac 都能用，直接发给别人即可。只给自己用可以加 `--native`，只编译本机架构，速度快一倍。
@@ -82,7 +82,7 @@ npm run tauri dev
 
   几分钟后 DMG 会自动出现在仓库的 **Releases** 页面，版本号取自标签，把链接发给别人就行。
 
-  > GitHub 自动打包的是 macOS Apple 芯片（arm64）版本和 Windows x64 版本；需要 Intel Mac 版可以在本地运行 `./build-macos.sh`。
+  > GitHub 自动打包的是 macOS Apple 芯片（arm64）版本和 Windows x64 版本；需要 Intel Mac 版可以在本地运行 `platforms/macos/build.sh`。
 
 **别人第一次打开时**：应用没有经过 Apple 公证（需要每年 99 美元的开发者账号），macOS 会提示「无法验证开发者」或「已损坏」。在「系统设置 → 隐私与安全性」底部点「仍要打开」，或者在终端执行 `xattr -cr /Applications/Ankiki.app` 即可。
 
@@ -98,7 +98,7 @@ npm run tauri dev
   winget install Microsoft.VisualStudio.2022.BuildTools --override "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
   ```
 
-然后**双击项目里的 `build-windows.cmd`**（或在 PowerShell 中运行 `.\build-windows.ps1`），完成后生成 `release\Ankiki_<版本>_x64-setup.exe`，双击安装即可，不需要管理员权限。Windows 10 / 11 自带运行所需的 WebView2。
+然后**双击项目里的 `platforms\windows\build.cmd`**（或在 PowerShell 中运行 `.\platforms\windows\build.ps1`），完成后生成 `release\Ankiki_<版本>_x64-setup.exe`，双击安装即可，不需要管理员权限。Windows 10 / 11 自带运行所需的 WebView2。
 
 第一次运行时 SmartScreen 可能提示「已保护你的电脑」，点「更多信息 → 仍要运行」即可。Windows 上的数据保存在 `%APPDATA%\com.kirin233x.ankiki\`。
 
@@ -140,14 +140,14 @@ npm run ios:init
 用数据线连上 iPhone（解锁并信任这台电脑），然后运行：
 
 ```bash
-./build_ios.sh
+platforms/ios/build.sh
 ```
 
 脚本会自动完成这些事：检查环境，安装依赖，生成或修补 Xcode 工程（PATH、图标、启动屏），构建 App，安装到手机并打开。第一次构建大约需要 5~10 分钟，之后会快很多。
 
 - 第一次使用前，需要在 Xcode 里给工程选过一次签名 Team（见下面「安装到手机」第 3 步）。也可以先设置环境变量 `export APPLE_DEVELOPMENT_TEAM=你的TeamID`。
-- `./build_ios.sh --xcode`：改为打开 Xcode，在 Xcode 里手动运行，适合查看详细报错。
-- 连了多台设备时，用 `./build_ios.sh --device 设备ID` 指定，设备 ID 可以用 `xcrun devicectl list devices` 查看。
+- `platforms/ios/build.sh --xcode`：改为打开 Xcode，在 Xcode 里手动运行，适合查看详细报错。
+- 连了多台设备时，用 `platforms/ios/build.sh --device 设备ID` 指定，设备 ID 可以用 `xcrun devicectl list devices` 查看。
 
 ### 安装到手机（手动方式）
 
@@ -170,7 +170,7 @@ npm run ios:xcode
 
 > 用免费 Apple ID 签名的 App **7 天后会过期**。过期后重复上面的步骤即可，词书和学习进度不会丢。
 
-> 启动画面：`npm run ios:xcode` 会自动给 Xcode 工程换上 Ankiki 的图标和启动屏（纯紫色背景），素材在 `src-tauri/ios-assets/`。iOS 会缓存启动屏，如果装好后还看到旧的黑屏，重启一下手机即可。
+> 启动画面：`npm run ios:xcode` 会自动给 Xcode 工程换上 Ankiki 的图标和启动屏（纯紫色背景），素材在 `platforms/ios/assets/`。iOS 会缓存启动屏，如果装好后还看到旧的黑屏，重启一下手机即可。
 
 **常见报错**
 
@@ -221,15 +221,24 @@ Ankiki 会自动在 `~/Library/Application Support/Anki2/` 下查找 Anki 用户
 │   ├── components/          # 卡片渲染 iframe、对话框等
 │   ├── render.ts            # Anki 卡片模板渲染器（字段、填空、发音、注音…）
 │   └── api.ts               # 调用 Rust 后端的接口
-└── src-tauri/
-    ├── src/lib.rs           # Tauri 命令
+├── src-tauri/
+│   ├── src/lib.rs           # Tauri 命令
+│   ├── resources/           # 随安装包附带的内置词书
     └── core/                # 与界面无关的核心库（可单独测试）
         ├── src/importer.rs  # .apkg / .colpkg 导入
         ├── src/fsrs.rs      # FSRS-5 记忆模型
         ├── src/scheduler.rs # 学习队列与评分调度
         ├── src/browse.rs    # 搜索
-        └── src/stats.rs     # 统计
+│       └── src/stats.rs     # 统计
+└── platforms/               # 各平台专属的打包脚本与素材（共用上面的界面和核心代码）
+    ├── macos/               # build.sh → DMG
+    ├── windows/             # build.cmd / build.ps1 → 安装程序
+    ├── ios/                 # build.sh、Xcode 工程补丁、图标与启动屏
+    ├── android/             # 规划中
+    └── harmony/             # 规划中（鸿蒙 NEXT）
 ```
+
+所有平台共用 `src/`（界面）和 `src-tauri/core/`（数据库、FSRS、导入等核心逻辑），`platforms/` 下只放各平台自己的打包脚本和素材，改一次功能所有平台同时生效。详见 [platforms/README.md](platforms/README.md)。
 
 运行核心测试：
 

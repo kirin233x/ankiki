@@ -2,14 +2,14 @@
 #  Ankiki Windows 一键打包脚本：生成可以发给别人的安装程序（.exe）
 #
 #  用法（在项目目录打开 PowerShell）：
-#    .\build-windows.ps1
-#  或者直接双击 build-windows.cmd
+#    .\platforms\windows\build.ps1
+#  或者直接双击 platforms\windows\build.cmd
 #
 #  产物：release\Ankiki_<版本>_x64-setup.exe
 #  需要：Node.js 18+、Rust（rustup）、Visual Studio 生成工具（勾选「使用 C++ 的桌面开发」）
 # =====================================================================
 $ErrorActionPreference = "Stop"
-Set-Location -Path $PSScriptRoot
+Set-Location -Path (Join-Path $PSScriptRoot "..\..")
 $start = Get-Date
 $script:step = 0
 

@@ -3,17 +3,17 @@
 #  Ankiki iOS 一键构建脚本
 #
 #  用法：
-#    ./build_ios.sh              构建 → 安装到连接的 iPhone → 自动打开 App
-#    ./build_ios.sh --xcode      构建前端并打开 Xcode（在 Xcode 里手动点 ▶，适合调试）
-#    ./build_ios.sh --device ID  指定设备（有多台设备时使用，ID 见 xcrun devicectl list devices）
-#    ./build_ios.sh --help       查看帮助
+#    platforms/ios/build.sh              构建 → 安装到连接的 iPhone → 自动打开 App
+#    platforms/ios/build.sh --xcode      构建前端并打开 Xcode（在 Xcode 里手动点 ▶，适合调试）
+#    platforms/ios/build.sh --device ID  指定设备（有多台设备时使用，ID 见 xcrun devicectl list devices）
+#    platforms/ios/build.sh --help       查看帮助
 #
 #  第一次使用前：在 Xcode 里给工程选过一次 Team（Signing & Capabilities），
 #  或者设置环境变量 APPLE_DEVELOPMENT_TEAM=你的 Team ID。
 # =====================================================================
 set -euo pipefail
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/../.."
 ROOT="$(pwd)"
 APPLE_DIR="$ROOT/src-tauri/gen/apple"
 
@@ -99,7 +99,7 @@ if ! ls "$APPLE_DIR"/*.xcodeproj >/dev/null 2>&1; then
   npx tauri ios init
 fi
 # 补 PATH、换上 App 图标和启动屏（可重复执行）
-node scripts/ios-patch-xcode.mjs | sed 's/^/    /'
+node platforms/ios/patch-xcode.mjs | sed 's/^/    /'
 
 # 签名用的 Team：优先用环境变量，否则读取在 Xcode 里选过的 Team
 if [ -z "${APPLE_DEVELOPMENT_TEAM:-}" ]; then
@@ -111,7 +111,7 @@ if [ -n "$APPLE_DEVELOPMENT_TEAM" ]; then
   ok "签名 Team：$APPLE_DEVELOPMENT_TEAM"
 elif [ "$MODE" = "install" ]; then
   die "还没有设置签名 Team。
-  方法一：运行 ./build_ios.sh --xcode，在 Xcode 的 Signing & Capabilities 里选一次 Team，以后就不用再选了；
+  方法一：运行 platforms/ios/build.sh --xcode，在 Xcode 的 Signing & Capabilities 里选一次 Team，以后就不用再选了；
   方法二：export APPLE_DEVELOPMENT_TEAM=你的TeamID 后再运行本脚本。"
 fi
 
@@ -164,7 +164,7 @@ if [ -z "$DEVICE" ]; then
   rm -f "$DEVICES_JSON"
   [ -n "$DEVICE_LINE" ] || die "没有找到可用的 iPhone。
   请确认：① 手机用数据线连到 Mac 并已解锁；② 手机上点过「信任此电脑」；③ 已开启「设置 → 隐私与安全性 → 开发者模式」。
-  也可以运行 ./build_ios.sh --xcode，用 Xcode 安装。"
+  也可以运行 platforms/ios/build.sh --xcode，用 Xcode 安装。"
   DEVICE="${DEVICE_LINE%%$'\t'*}"
   ok "设备：${DEVICE_LINE#*$'\t'}"
 else
@@ -175,7 +175,7 @@ fi
 step "安装到手机"
 if ! xcrun devicectl device install app --device "$DEVICE" "$APP"; then
   die "安装失败。常见原因：手机锁屏了、没开开发者模式、或证书过期（免费账号 7 天）。
-  可以运行 ./build_ios.sh --xcode，用 Xcode 安装并查看详细原因。"
+  可以运行 platforms/ios/build.sh --xcode，用 Xcode 安装并查看详细原因。"
 fi
 ok "已安装"
 
