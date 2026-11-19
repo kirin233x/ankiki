@@ -59,7 +59,28 @@ npm run tauri build
 npm run tauri dev
 ```
 
-> 不想自己编译的话，可以在 GitHub 仓库的 **Actions → 打包 macOS 应用** 中手动运行，然后下载生成的 DMG。从网上下载的未签名应用第一次打开时，macOS 可能提示「已损坏」，在终端执行 `xattr -cr /Applications/Ankiki.app` 即可。
+### 打包成 DMG 分发给别人
+
+**方式一：本地一条命令**
+
+```bash
+./build-macos.sh
+```
+
+生成 `release/Ankiki_<版本>_universal.dmg`，Apple 芯片和 Intel 的 Mac 都能用，直接发给别人即可。只给自己用可以加 `--native`，只编译本机架构，速度快一倍。
+
+**方式二：GitHub 自动打包（不用自己的电脑）**
+
+- 每次推送代码，GitHub Actions 都会自动打包，在 **Actions → 打包 macOS 应用 → 本次运行 → Artifacts** 里下载 DMG。
+- 想正式发版时，打一个标签：
+
+  ```bash
+  git tag v0.2.0 && git push origin v0.2.0
+  ```
+
+  几分钟后 DMG 会自动出现在仓库的 **Releases** 页面，版本号取自标签，把链接发给别人就行。
+
+**别人第一次打开时**：应用没有经过 Apple 公证（需要每年 99 美元的开发者账号），macOS 会提示「无法验证开发者」或「已损坏」。在「系统设置 → 隐私与安全性」底部点「仍要打开」，或者在终端执行 `xattr -cr /Applications/Ankiki.app` 即可。
 
 ## 数据存放位置
 
