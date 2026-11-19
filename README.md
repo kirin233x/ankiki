@@ -106,6 +106,85 @@ npm run tauri dev
 
 安装包自带「内置托业词书」（TOEIC TSL 核心词汇 1250 词，含音标、例句、搭配、词根和助记），第一次打开应用时自动导入。删除后不会再自动装回来，需要的话可以从 `src-tauri/resources/toeic.apkg` 手动导入。
 
+## iPhone 版（实验性）
+
+手机版和 Mac 版共用同一套代码，界面会自动切换成手机布局：底部是悬浮的玻璃标签栏，学习时轻点卡片翻面。手机和 Mac 的数据各自独立，暂时不同步。
+
+### 第一次准备（只需一次）
+
+1. 从 App Store 安装 **Xcode**，打开一次并同意许可协议。
+2. 安装工具：
+
+```bash
+brew install cocoapods
+```
+
+```bash
+rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
+```
+
+3. 在项目目录下生成 iOS 工程：
+
+```bash
+npm install
+```
+
+```bash
+npm run ios:init
+```
+
+4. 用数据线把 iPhone 连到 Mac。在 iPhone 上打开「设置 → 隐私与安全性 → 开发者模式」（如果看不到这一项，先在 Xcode 里连一次手机）。
+
+### 一键构建并安装（推荐）
+
+用数据线连上 iPhone（解锁并信任这台电脑），然后运行：
+
+```bash
+./build_ios.sh
+```
+
+脚本会自动完成这些事：检查环境，安装依赖，生成或修补 Xcode 工程（PATH、图标、启动屏），构建 App，安装到手机并打开。第一次构建大约需要 5~10 分钟，之后会快很多。
+
+- 第一次使用前，需要在 Xcode 里给工程选过一次签名 Team（见下面「安装到手机」第 3 步）。也可以先设置环境变量 `export APPLE_DEVELOPMENT_TEAM=你的TeamID`。
+- `./build_ios.sh --xcode`：改为打开 Xcode，在 Xcode 里手动运行，适合查看详细报错。
+- 连了多台设备时，用 `./build_ios.sh --device 设备ID` 指定，设备 ID 可以用 `xcrun devicectl list devices` 查看。
+
+### 安装到手机（手动方式）
+
+1. **先彻底退出 Xcode（⌘Q）**。如果 Xcode 已经开着，新打开的工程会沿用旧的环境，找不到 `npm`。
+2. 在终端里运行下面的命令，**运行期间不要关掉这个终端**：
+
+```bash
+npm run ios:xcode
+```
+
+这条命令会做三件事：
+- 给 Xcode 的构建脚本补上 node 和 cargo 的路径，避免 `npm: command not found`；
+- 构建界面；
+- 由 Tauri 打开 Xcode，并一直在后台运行。Xcode 构建 Rust 代码时要从它读取参数。
+
+3. 在 Xcode 里：左侧点项目 → 选中 `ankiki_iOS` → **Signing & Capabilities** → Team 选你的 Apple ID（Personal Team 也可以）。如果提示 Bundle Identifier 冲突，改成别的，比如 `com.你的名字.ankiki`。
+4. 顶部选择你的 iPhone，点 ▶（⌘R）。界面已经打包进 App，装好后不依赖 Mac 也能用。
+5. 第一次打开时，如果提示「未受信任的开发者」，在 iPhone 上打开「设置 → 通用 → VPN 与设备管理」，信任你的开发者证书。
+6. 装好后可以在终端按 Ctrl+C 结束。
+
+> 用免费 Apple ID 签名的 App **7 天后会过期**。过期后重复上面的步骤即可，词书和学习进度不会丢。
+
+> 启动画面：`npm run ios:xcode` 会自动给 Xcode 工程换上 Ankiki 的图标和启动屏（纯紫色背景），素材在 `src-tauri/ios-assets/`。iOS 会缓存启动屏，如果装好后还看到旧的黑屏，重启一下手机即可。
+
+**常见报错**
+
+- `npm: command not found`：先 ⌘Q 退出 Xcode，再运行 `npm run ios:xcode`，它会自动修复。如果换了 node 版本（比如用 nvm 切换），也重新运行一次。
+- `the tauri ios dev or tauri ios build command must be running`：运行 `npm run ios:xcode` 的终端被关掉了，重新运行即可。
+
+开发调试时也可以用 `npm run ios:dev`（同样会打开 Xcode）。这种方式下，App 从 Mac 上的开发服务器加载界面，手机和 Mac 需要连在同一个 Wi-Fi。
+
+### 在手机上导入词书
+
+先把 .apkg 放进 iPhone 的「文件」App（例如从 Mac 用隔空投送发到手机后选择「存储到文件」，或者放进 iCloud 云盘），然后在 App 里点右下角的 **+** → 「导入 Anki 词书」，选中文件即可。
+
+在电脑浏览器里预览手机布局：运行 `npm run dev`，然后打开 `http://localhost:1420/?mobile`。
+
 ## 数据存放位置
 
 所有数据都保存在本地，不联网：

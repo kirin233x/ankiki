@@ -29,7 +29,9 @@
       "csp": null,
       "assetProtocol": {
         "enable": true,
-        "scope": ["$APPDATA/**"]
+        "scope": [
+          "$APPDATA/**"
+        ]
       }
     }
   },
@@ -58,6 +60,9 @@
         "languages": ["SimpChinese"],
         "installMode": "currentUser"
       }
+    },
+    "iOS": {
+      "minimumSystemVersion": "16.0"
     }
   }
 }

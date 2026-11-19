@@ -6,6 +6,7 @@ import CardFrame from "../components/CardFrame";
 import NoteEditor from "../components/NoteEditor";
 import { Confirm, useToast } from "../components/ui";
 import { renderSide } from "../render";
+import { isMobile } from "../platform";
 import { formatDateTime, formatDays, formatDue, RATING_COLOR, RATING_LABEL, STATE_COLOR, STATE_LABEL } from "../utils";
 
 const PAGE_SIZES = [50, 100, 200, 500];
@@ -63,6 +64,8 @@ export default function Browse({ initialDeck }: { initialDeck: number | null }) 
   const [allMatching, setAllMatching] = useState(false);
   const [lastIndex, setLastIndex] = useState<number | null>(null);
   const [confirmBatchDelete, setConfirmBatchDelete] = useState(false);
+  // 手机上的多选模式
+  const [selectMode, setSelectMode] = useState(false);
 
   // 筛选条件变化时清空选择
   useEffect(() => {
@@ -158,6 +161,7 @@ export default function Browse({ initialDeck }: { initialDeck: number | null }) 
   const clearChecked = () => {
     setChecked(new Set());
     setAllMatching(false);
+    setSelectMode(false);
   };
 
   const batch = async (fn: (ids: number[]) => Promise<void>, msg: string) => {
@@ -190,6 +194,14 @@ export default function Browse({ initialDeck }: { initialDeck: number | null }) 
             <h1 className="page-title">单词本</h1>
             <div className="page-subtitle">共 {data.total} 张卡片</div>
           </div>
+          {isMobile && (
+            <button
+              className={`btn ${selectMode ? "btn-soft" : ""}`}
+              onClick={() => (selectMode ? clearChecked() : setSelectMode(true))}
+            >
+              {selectMode ? "完成" : "选择"}
+            </button>
+          )}
         </div>
         <div className="toolbar">
           <div className="search-box">
@@ -270,60 +282,31 @@ export default function Browse({ initialDeck }: { initialDeck: number | null }) 
             <button onClick={selectAllMatching}>选择全部 {data.total} 张符合条件的卡片</button>
           </div>
         )}
-        <div className="table-wrap">
-          <table className="cards">
-            <thead>
-              <tr>
-                <th className="c-check" onClick={togglePage}>
-                  <span className={`cbox ${pageAllChecked ? "on" : pageSomeChecked ? "some" : ""}`}>
-                    {pageAllChecked ? <Check size={12} strokeWidth={3} /> : pageSomeChecked ? <Minus size={12} strokeWidth={3} /> : null}
-                  </span>
-                </th>
-                {COLUMNS.map((c) => (
-                  <th
-                    key={c.key}
-                    className={`c-${c.key} ${c.optional ? "col-optional" : ""}`}
-                    onClick={() => toggleSort(c.sort)}
-                    style={{ cursor: c.sort ? "pointer" : "default" }}
-                  >
-                    {c.label}
-                    {c.sort && sort === c.sort && <span className="sort-ind">{desc ? "▼" : "▲"}</span>}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {data.rows.map((r, i) => (
-                <tr
+        {isMobile ? (
+          <div className="m-list glass">
+            {data.rows.map((r) => {
+              const on = checked.has(r.cardId);
+              return (
+                <button
                   key={r.cardId}
-                  className={selected === r.cardId || checked.has(r.cardId) ? "selected" : ""}
-                  onClick={(e) => {
-                    if (e.shiftKey || e.metaKey || e.ctrlKey) toggleRow(i, e.shiftKey);
-                    else setSelected(r.cardId === selected ? null : r.cardId);
-                  }}
+                  className={`m-row ${on ? "on" : ""}`}
                   style={{ opacity: r.suspended || r.known ? 0.55 : 1 }}
+                  onClick={() => {
+                    if (selectMode) {
+                      const next = new Set(checked);
+                      on ? next.delete(r.cardId) : next.add(r.cardId);
+                      setChecked(next);
+                    } else setSelected(r.cardId);
+                  }}
                 >
-                  <td
-                    className="cell-check"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleRow(i, e.shiftKey);
-                    }}
-                  >
-                    <span className={`cbox ${checked.has(r.cardId) ? "on" : ""}`}>
-                      {checked.has(r.cardId) && <Check size={12} strokeWidth={3} />}
-                    </span>
-                  </td>
-                  <td className="front" title={r.front}>
-                    {r.front || "（空）"}
-                  </td>
-                  <td className="back" title={r.back}>
-                    {r.back}
-                  </td>
-                  <td className="num col-optional" style={{ maxWidth: 140 }} title={r.deckName}>
-                    {r.deckName}
-                  </td>
-                  <td>
+                  {selectMode && (
+                    <span className={`cbox ${on ? "on" : ""}`}>{on && <Check size={12} strokeWidth={3} />}</span>
+                  )}
+                  <span className="m-row-main">
+                    <b>{r.front || "（空）"}</b>
+                    <small>{r.back}</small>
+                  </span>
+                  <span className="m-row-side">
                     <span
                       className="state-dot"
                       style={{ color: r.known ? "#8b7bff" : r.suspended ? "var(--faint)" : STATE_COLOR[r.state] }}
@@ -331,26 +314,96 @@ export default function Browse({ initialDeck }: { initialDeck: number | null }) 
                       <i style={{ background: "currentColor" }} />
                       {r.known ? "熟词" : r.suspended ? "已暂停" : STATE_LABEL[r.state]}
                     </span>
-                  </td>
-                  <td className="num">{r.known ? "—" : formatDue(r.due, r.state)}</td>
-                  <td className="num col-optional">{r.state === 0 ? "—" : formatDays(r.interval)}</td>
-                  <td className="num col-optional">
-                    {r.difficulty > 0 ? <DifficultyBar value={r.difficulty} /> : "—"}
-                  </td>
-                  <td className="num col-optional">{r.reps}</td>
-                  <td className="num col-optional">{r.lapses}</td>
-                </tr>
-              ))}
-              {data.rows.length === 0 && (
+                    <small>{r.known ? "" : formatDue(r.due, r.state)}</small>
+                  </span>
+                </button>
+              );
+            })}
+            {data.rows.length === 0 && <div className="m-empty">没有找到符合条件的卡片</div>}
+          </div>
+        ) : (
+          <div className="table-wrap">
+            <table className="cards">
+              <thead>
                 <tr>
-                  <td colSpan={COLUMNS.length + 1} style={{ textAlign: "center", padding: 60, color: "var(--muted)" }}>
-                    没有找到符合条件的卡片
-                  </td>
+                  <th className="c-check" onClick={togglePage}>
+                    <span className={`cbox ${pageAllChecked ? "on" : pageSomeChecked ? "some" : ""}`}>
+                      {pageAllChecked ? <Check size={12} strokeWidth={3} /> : pageSomeChecked ? <Minus size={12} strokeWidth={3} /> : null}
+                    </span>
+                  </th>
+                  {COLUMNS.map((c) => (
+                    <th
+                      key={c.key}
+                      className={`c-${c.key} ${c.optional ? "col-optional" : ""}`}
+                      onClick={() => toggleSort(c.sort)}
+                      style={{ cursor: c.sort ? "pointer" : "default" }}
+                    >
+                      {c.label}
+                      {c.sort && sort === c.sort && <span className="sort-ind">{desc ? "▼" : "▲"}</span>}
+                    </th>
+                  ))}
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {data.rows.map((r, i) => (
+                  <tr
+                    key={r.cardId}
+                    className={selected === r.cardId || checked.has(r.cardId) ? "selected" : ""}
+                    onClick={(e) => {
+                      if (e.shiftKey || e.metaKey || e.ctrlKey) toggleRow(i, e.shiftKey);
+                      else setSelected(r.cardId === selected ? null : r.cardId);
+                    }}
+                    style={{ opacity: r.suspended || r.known ? 0.55 : 1 }}
+                  >
+                    <td
+                      className="cell-check"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleRow(i, e.shiftKey);
+                      }}
+                    >
+                      <span className={`cbox ${checked.has(r.cardId) ? "on" : ""}`}>
+                        {checked.has(r.cardId) && <Check size={12} strokeWidth={3} />}
+                      </span>
+                    </td>
+                    <td className="front" title={r.front}>
+                      {r.front || "（空）"}
+                    </td>
+                    <td className="back" title={r.back}>
+                      {r.back}
+                    </td>
+                    <td className="num col-optional" style={{ maxWidth: 140 }} title={r.deckName}>
+                      {r.deckName}
+                    </td>
+                    <td>
+                      <span
+                        className="state-dot"
+                        style={{ color: r.known ? "#8b7bff" : r.suspended ? "var(--faint)" : STATE_COLOR[r.state] }}
+                      >
+                        <i style={{ background: "currentColor" }} />
+                        {r.known ? "熟词" : r.suspended ? "已暂停" : STATE_LABEL[r.state]}
+                      </span>
+                    </td>
+                    <td className="num">{r.known ? "—" : formatDue(r.due, r.state)}</td>
+                    <td className="num col-optional">{r.state === 0 ? "—" : formatDays(r.interval)}</td>
+                    <td className="num col-optional">
+                      {r.difficulty > 0 ? <DifficultyBar value={r.difficulty} /> : "—"}
+                    </td>
+                    <td className="num col-optional">{r.reps}</td>
+                    <td className="num col-optional">{r.lapses}</td>
+                  </tr>
+                ))}
+                {data.rows.length === 0 && (
+                  <tr>
+                    <td colSpan={COLUMNS.length + 1} style={{ textAlign: "center", padding: 60, color: "var(--muted)" }}>
+                      没有找到符合条件的卡片
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
         <div className="pager">
           <span className="pager-total">共 {data.total} 张</span>
           <div className="pager-btns">

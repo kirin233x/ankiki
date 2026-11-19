@@ -2,6 +2,10 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./styles.css";
+import "./mobile.css";
+import { isMobile } from "./platform";
+
+if (isMobile) document.documentElement.classList.add("mobile");
 
 // Windows 使用系统原生标题栏，去掉为 macOS 红绿灯预留的空白
 if (navigator.userAgent.includes("Windows")) document.documentElement.classList.add("windows");

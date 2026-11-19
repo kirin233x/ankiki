@@ -2,10 +2,62 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Ankiki</title>
+    <style>
+      /* 启动画面：和 iOS 原生启动屏一样只有品牌紫色，数据加载完后淡出 */
+      #splash {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483647;
+        background: #6d5bff;
+        transition: opacity 0.3s ease-out;
+        will-change: opacity;
+        transform: translateZ(0);
+      }
+      #splash i {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 22px;
+        height: 22px;
+        margin: -11px 0 0 -11px;
+        border-radius: 50%;
+        border: 2.5px solid rgba(255, 255, 255, 0.3);
+        border-top-color: #fff;
+        opacity: 0;
+        animation: splash-spin 0.8s linear infinite, splash-in 0.3s ease 1.2s forwards;
+      }
+      #splash.hide {
+        opacity: 0;
+        pointer-events: none;
+      }
+      html.desktop #splash {
+        display: none;
+      }
+      @keyframes splash-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @keyframes splash-in {
+        to {
+          opacity: 1;
+        }
+      }
+    </style>
+    <script>
+      // 只在 iPhone / iPad 上显示启动画面（iPad 的 UA 与 Mac 相同，用触控点数区分）
+      (function () {
+        var ua = navigator.userAgent;
+        var touch = /iPhone|iPad|iPod|Android/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+        if (!touch && !/[?&]mobile/.test(location.search)) document.documentElement.classList.add("desktop");
+      })();
+    </script>
   </head>
   <body>
+    <div id="splash"><i></i></div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { BarChart3, BookOpen, Download, House, Library, Plus, Settings as SettingsIcon, LayoutGrid } from "lucide-react";
-import { api, DeckInfo, onFileDrop, pickPackage, Settings } from "./api";
+import { api, DeckInfo, onFileDrop, pickPackage, Settings, Stats } from "./api";
 import { ToastProvider, useToast } from "./components/ui";
 import ImportDialog from "./components/ImportDialog";
 import AddNoteDialog from "./components/AddNoteDialog";
@@ -15,6 +15,8 @@ import Board from "./pages/Board";
 import StatsPage from "./pages/Stats";
 import SettingsPage from "./pages/Settings";
 import { deckColor } from "./utils";
+import { isMobile } from "./platform";
+import MobileNav from "./components/MobileNav";
 
 export type Route =
   | { name: "home" }
@@ -30,6 +32,8 @@ interface AppCtx {
   saveSettings: (s: Settings) => Promise<void>;
   decks: DeckInfo[];
   decksLoaded: boolean;
+  /** 首页用的全局统计（与词书一起加载，避免首页先空后满地闪一下） */
+  homeStats: Stats | null;
   refreshDecks: () => Promise<void>;
   route: Route;
   go: (r: Route) => void;
@@ -64,11 +68,32 @@ function useSystemDark() {
   return dark;
 }
 
+/** 数据准备好、首屏已经画出来并且布局稳定之后，淡出启动画面 */
+let splashHiding = false;
+async function hideSplash() {
+  const el = document.getElementById("splash");
+  if (!el || splashHiding) return;
+  splashHiding = true;
+  // 等字体加载完，避免淡出过程中文字换字体导致页面跳动
+  try {
+    await Promise.race([document.fonts?.ready, new Promise((r) => setTimeout(r, 400))]);
+  } catch {
+    /* 忽略 */
+  }
+  // 等两帧让首屏真正画出来，再留一点时间给 iOS 更新安全区（刘海）等布局
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  await new Promise((r) => setTimeout(r, 120));
+  el.classList.add("hide");
+  setTimeout(() => el.remove(), 360);
+}
+
 function Shell() {
   const toast = useToast();
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [decks, setDecks] = useState<DeckInfo[]>([]);
   const [decksLoaded, setDecksLoaded] = useState(false);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [homeStats, setHomeStats] = useState<Stats | null>(null);
   const [route, setRoute] = useState<Route>({ name: "home" });
   const [importPath, setImportPath] = useState<string | null>(null);
   const [addNoteDeck, setAddNoteDeck] = useState<number | null | undefined>(undefined);
@@ -85,7 +110,9 @@ function Shell() {
 
   const refreshDecks = useCallback(async () => {
     try {
-      setDecks(await api.listDecks());
+      const [d, st] = await Promise.all([api.listDecks(), api.getStats(null).catch(() => null)]);
+      setDecks(d);
+      if (st) setHomeStats(st);
     } catch (e) {
       toast(String(e), true);
     } finally {
@@ -94,9 +121,23 @@ function Shell() {
   }, [toast]);
 
   useEffect(() => {
-    api.getSettings().then(setSettings).catch(() => {});
+    api
+      .getSettings()
+      .then(setSettings)
+      .catch(() => {})
+      .finally(() => setSettingsLoaded(true));
     refreshDecks();
   }, [refreshDecks]);
+
+  const ready = settingsLoaded && decksLoaded;
+  useEffect(() => {
+    if (ready) hideSplash();
+  }, [ready]);
+  useEffect(() => {
+    // 兜底：无论如何 8 秒后都进入 App
+    const t = setTimeout(hideSplash, 8000);
+    return () => clearTimeout(t);
+  }, []);
 
   // 跨过学习日或回到窗口时刷新到期数量
   useEffect(() => {
@@ -150,6 +191,7 @@ function Shell() {
       saveSettings,
       decks,
       decksLoaded,
+      homeStats,
       refreshDecks,
       route,
       go,
@@ -161,7 +203,7 @@ function Shell() {
       renameDeck: (deck) => setPrompt({ kind: "rename", deck }),
       openSync: () => setSyncOpen(true),
     }),
-    [settings, saveSettings, decks, decksLoaded, refreshDecks, route, go, dark, startImport],
+    [settings, saveSettings, decks, decksLoaded, homeStats, refreshDecks, route, go, dark, startImport],
   );
 
   const totalDue = decks.reduce((s, d) => s + d.due.new + d.due.learning + d.due.review, 0);
@@ -175,10 +217,14 @@ function Shell() {
     { key: "settings", label: "设置", icon: <SettingsIcon size={18} />, route: { name: "settings" } as Route },
   ];
 
+  // 数据加载完成前只渲染空的底色（手机上被启动画面盖住），避免先出现空页面再闪成有数据的页面
+  if (!ready) return <div className="app" />;
+
   return (
     <Ctx.Provider value={ctx}>
-      <div className="app">
-        {!studying && (
+      <div className={`app ${studying ? "studying" : ""}`}>
+        {isMobile && <div className="m-backdrop" aria-hidden />}
+        {!studying && !isMobile && (
           <aside className="sidebar">
             <div className="drag-region" data-tauri-drag-region />
             <div className="brand" data-tauri-drag-region>
@@ -231,7 +277,7 @@ function Shell() {
           </aside>
         )}
         <main className="main">
-          <div className="main-drag" data-tauri-drag-region />
+          {!isMobile && <div className="main-drag" data-tauri-drag-region />}
           {route.name === "home" && <Home />}
           {route.name === "study" && <Study key={route.deckId} deckId={route.deckId} />}
           {route.name === "sift" && <Sift key={route.deckId} deckId={route.deckId} />}
@@ -240,6 +286,7 @@ function Shell() {
           {route.name === "board" && <Board key={route.date ?? ""} initialDate={route.date} />}
           {route.name === "settings" && <SettingsPage />}
         </main>
+        {isMobile && !studying && <MobileNav />}
       </div>
 
       {importPath && (
