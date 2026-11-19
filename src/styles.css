@@ -29,7 +29,7 @@
   --sidebar: rgba(255, 255, 255, 0.72);
   --radius: 16px;
   --radius-lg: 22px;
-  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Segoe UI", "Microsoft YaHei",
     "Segoe UI", sans-serif;
   color-scheme: light;
 }
@@ -271,6 +271,15 @@ button {
 .main-drag {
   height: 28px;
   flex-shrink: 0;
+}
+html.windows .sidebar {
+  padding-top: 18px;
+}
+html.windows .drag-region {
+  display: none;
+}
+html.windows .main-drag {
+  height: 12px;
 }
 .page {
   flex: 1;

@@ -3,6 +3,9 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./styles.css";
 
+// Windows 使用系统原生标题栏，去掉为 macOS 红绿灯预留的空白
+if (navigator.userAgent.includes("Windows")) document.documentElement.classList.add("windows");
+
 // 防止误触浏览器默认行为（右键菜单、拖拽打开文件）
 window.addEventListener("dragover", (e) => e.preventDefault());
 window.addEventListener("drop", (e) => e.preventDefault());

@@ -71,20 +71,36 @@ npm run tauri dev
 
 **方式二：GitHub 自动打包（不用自己的电脑）**
 
-- 每次推送代码，GitHub Actions 都会自动打包，在 **Actions → 打包 macOS 应用 → 本次运行 → Artifacts** 里下载 DMG。
+- 每次推送代码，GitHub Actions 都会自动打包，在 **Actions → 打包应用 → 本次运行 → Artifacts** 里下载 macOS DMG 和 Windows 安装程序。
 - 想正式发版时，把 `src-tauri/tauri.conf.json` 里的 `version` 改大（如 `0.2.0`）再推送，会自动发布到 **Releases**（该版本已发布过则只打包）。也可以打一个标签：
 
   ```bash
   git tag v0.2.0 && git push origin v0.2.0
   ```
 
-  或者在 GitHub 网页上进入 **Actions → 打包 macOS 应用 → Run workflow**，填写版本号（如 `0.2.0`）后运行，效果相同，会自动打标签。
+  或者在 GitHub 网页上进入 **Actions → 打包应用 → Run workflow**，填写版本号（如 `0.2.0`）后运行，效果相同，会自动打标签。
 
   几分钟后 DMG 会自动出现在仓库的 **Releases** 页面，版本号取自标签，把链接发给别人就行。
 
-  > GitHub 自动打包的是 Apple 芯片（arm64）版本；需要 Intel 版可以在本地运行 `./build-macos.sh`。
+  > GitHub 自动打包的是 macOS Apple 芯片（arm64）版本和 Windows x64 版本；需要 Intel Mac 版可以在本地运行 `./build-macos.sh`。
 
 **别人第一次打开时**：应用没有经过 Apple 公证（需要每年 99 美元的开发者账号），macOS 会提示「无法验证开发者」或「已损坏」。在「系统设置 → 隐私与安全性」底部点「仍要打开」，或者在终端执行 `xattr -cr /Applications/Ankiki.app` 即可。
+
+## Windows 版
+
+在 Windows 电脑上准备好：
+
+- [Node.js 18+](https://nodejs.org)
+- [Rust](https://rustup.rs)
+- Visual Studio 生成工具，安装时勾选「使用 C++ 的桌面开发」：
+
+  ```powershell
+  winget install Microsoft.VisualStudio.2022.BuildTools --override "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+  ```
+
+然后**双击项目里的 `build-windows.cmd`**（或在 PowerShell 中运行 `.\build-windows.ps1`），完成后生成 `release\Ankiki_<版本>_x64-setup.exe`，双击安装即可，不需要管理员权限。Windows 10 / 11 自带运行所需的 WebView2。
+
+第一次运行时 SmartScreen 可能提示「已保护你的电脑」，点「更多信息 → 仍要运行」即可。Windows 上的数据保存在 `%APPDATA%\com.kirin233x.ankiki\`。
 
 ## 数据存放位置
 
